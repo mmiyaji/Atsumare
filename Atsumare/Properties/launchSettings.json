@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Atsumare (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Atsumare (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
