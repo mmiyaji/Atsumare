@@ -3,12 +3,14 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <Grid Background="#99000000">
+    <Grid Background="Transparent" x:Name="Root" Loaded="Root_Loaded">
+
         <Border
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
             CornerRadius="16"
             Background="#CC202020"
+            Opacity="1"
             Padding="16"
             Width="720"
             MaxHeight="700">
@@ -47,6 +49,7 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
                     <Button Content="更新" Click="Refresh_Click"/>
                     <Button Content="閉じる" Click="Close_Click"/>
+                    <Button Content="すべて閉じる" Click="CloseAll_Click"/>
                 </StackPanel>
             </StackPanel>
         </Border>
