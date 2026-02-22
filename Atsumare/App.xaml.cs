@@ -17,6 +17,9 @@ namespace Atsumare
         private KeepAliveWindow? _keepAlive;
         private TrayIconHost? _tray;
         private static int _showRequested; // 0/1 (Interlockedで使う)
+        private static int _toggleRequested;
+        private bool _toggleBusy;         // UIスレッド専用
+        private bool _togglePending;      // UIスレッド専用（連打の合図）
         private Microsoft.UI.Dispatching.DispatcherQueueTimer? _pollTimer;
 
         public App()
@@ -24,9 +27,48 @@ namespace Atsumare
             InitializeComponent();
         }
 
-        internal static void RequestShow()
+
+        internal static void RequestToggle()
         {
-            System.Threading.Interlocked.Exchange(ref _showRequested, 1);
+            System.Threading.Interlocked.Exchange(ref _toggleRequested, 1);
+        }
+        private void RequestToggleOnUI()
+        {
+            if (_toggleBusy)
+                return;
+
+            _toggleBusy = true;
+
+            try
+            {
+                if (OpenWindows.Count > 0)
+                {
+                    // Closeだけして終わる
+                    CloseAllPickerWindows();
+                    return;
+                }
+
+                // Showは次のDispatcherで実行（Closeと分離）
+                DispatcherQueue.GetForCurrentThread().TryEnqueue(() =>
+                {
+                    try
+                    {
+                        ShowPickerOnAllMonitors();
+                    }
+                    finally
+                    {
+                        _toggleBusy = false;
+                    }
+                });
+
+                return;
+            }
+            finally
+            {
+                // Closeの場合だけここに来る
+                if (OpenWindows.Count == 0)
+                    _toggleBusy = false;
+            }
         }
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
@@ -52,13 +94,13 @@ namespace Atsumare
             WindowHider.HideAndRemoveFromAltTab(_keepAlive);
 
             _tray = new TrayIconHost(
-                onShow: () => App.RequestShow(),
+                onShow: () => App.RequestToggle(),
                 onExit: () => ExitApplication()
             );
             _tray.Create();
             // ③ ホットキー登録（Ctrl+Alt+Space 例）
             _hotkey = new HotkeyHost();
-            _hotkey.HotkeyPressed += (_, __) => ShowPickerOnAllMonitors();
+            _hotkey.HotkeyPressed += (_, __) => App.RequestToggle();
             _hotkey.StartRegisterHotkey(
                 modifiers: HotkeyModifiers.Control | HotkeyModifiers.Alt,
                 virtualKey: HotkeyVKey.Space
@@ -67,19 +109,42 @@ namespace Atsumare
             var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
 
             _pollTimer = dq.CreateTimer();
-            _pollTimer.Interval = TimeSpan.FromMilliseconds(250);
+            _pollTimer.Interval = TimeSpan.FromMilliseconds(200);
             _pollTimer.IsRepeating = true;
             _pollTimer.Tick += (_, __) =>
             {
-                if (System.Threading.Interlocked.Exchange(ref _showRequested, 0) == 1)
+                if (System.Threading.Interlocked.Exchange(ref _toggleRequested, 0) == 1)
                 {
-                    // ★ここはUIスレッド上
-                    ShowPickerOnAllMonitors();
+                    RequestToggleOnUI();
                 }
             };
             _pollTimer.Start();
         }
+        internal static void TogglePicker()
+        {
+            if (OpenWindows.Count > 0)
+            {
+                CloseAllPickerWindows(); // 表示ウィンドウだけ
+            }
+            else
+            {
+                ShowPickerOnAllMonitors();
+            }
+        }
+        internal static void CloseAllPickerWindows()
+        {
+            var list = OpenWindows.ToArray();
 
+            foreach (var w in list)
+            {
+                try
+                {
+                    if (w != null)
+                        w.Close();
+                }
+                catch { }
+            }
+        }
         private async Task WaitForExternalShowRequestsAsync()
         {
             if (_single == null) return;

@@ -1,5 +1,4 @@
 using Microsoft.UI;
-using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -15,21 +14,26 @@ using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Threading.Tasks;
-using Windows.Graphics;
 using Windows.Graphics.Imaging;
 using WinRT.Interop;
-using static Atsumare.App;
 
 namespace Atsumare;
 
 public sealed partial class MainWindow : Window
 {
+    // =========================
+    // UI Bindings
+    // =========================
     public ObservableCollection<AppGroupItem> AllItems { get; } = new();
     public ObservableCollection<AppGroupItem> FilteredItems { get; } = new();
 
     private bool _focusedOnce;
+    private bool _topMostOnce;
 
-    // ★このウィンドウが担当するターゲットモニター（クリック時にここへ寄せる）
+    // このウィンドウが閉じ処理に入ったら true（二重 Close 防止用）
+    public bool IsClosing { get; internal set; }
+
+    // この MainWindow の担当モニター（クリック時の寄せ先）
     private IntPtr _targetMonitorForThisWindow = IntPtr.Zero;
 
     private double _tileWidth = 180;
@@ -44,104 +48,6 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    #region Win32
-
-    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
-
-    [DllImport("user32.dll")]
-    private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
-
-    [DllImport("user32.dll")]
-    private static extern bool IsWindowVisible(IntPtr hWnd);
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
-
-    [DllImport("user32.dll")]
-    private static extern int GetWindowTextLength(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetClassLongPtr(IntPtr hWnd, int nIndex);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetAncestor(IntPtr hWnd, uint gaFlags);
-
-    [DllImport("user32.dll")]
-    private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern IntPtr OpenProcess(uint desiredAccess, bool inheritHandle, uint processId);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool CloseHandle(IntPtr hObject);
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern bool QueryFullProcessImageName(IntPtr hProcess, int flags, StringBuilder exeName, ref int size);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
-
-    [DllImport("user32.dll")]
-    private static extern bool IsIconic(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-    [DllImport("user32.dll")]
-    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool SetWindowPos(
-        IntPtr hWnd,
-        IntPtr hWndInsertAfter,
-        int X,
-        int Y,
-        int cx,
-        int cy,
-        uint uFlags);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetForegroundWindow();
-    [DllImport("kernel32.dll")]
-    private static extern uint GetCurrentProcessId();
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct POINT { public int X; public int Y; }
-
-    private const uint MONITOR_DEFAULTTONEAREST = 2;
-
-    private const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
-
-    private const uint GA_ROOTOWNER = 3;
-
-    private const int GWL_EXSTYLE = -20;
-    private const int WS_EX_TOOLWINDOW = 0x00000080;
-
-    private const int WM_GETICON = 0x007F;
-    private const int ICON_SMALL = 0;
-    private const int ICON_BIG = 1;
-    private const int ICON_SMALL2 = 2;
-
-    private const int GCLP_HICON = -14;
-    private const int GCLP_HICONSM = -34;
-
-    #endregion
-
-    private const uint SWP_NOZORDER = 0x0004;
-    private const uint SWP_NOACTIVATE = 0x0010;
-    private const uint SWP_NOSENDCHANGING = 0x0400;
-
-    private const int SW_RESTORE = 9;
-    private const int SW_SHOWNORMAL = 1;
-    private const int SW_SHOWMAXIMIZED = 3;
-    private const int SW_MAXIMIZE = 3;
-    private bool _topMostOnce;
     private AppWindow? _cachedAppWindow;
 
     public MainWindow()
@@ -152,16 +58,10 @@ public sealed partial class MainWindow : Window
         ConfigureTitleBarColors();
         SetWindowSize(820, 540);
 
-        try
-        {
-            SystemBackdrop = new MicaBackdrop();
-        }
-        catch
-        {
-            SystemBackdrop = null;
-        }
+        try { SystemBackdrop = new MicaBackdrop(); }
+        catch { SystemBackdrop = null; }
 
-        // Escで閉じる
+        // Esc で閉じる
         this.Content.PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Windows.System.VirtualKey.Escape)
@@ -171,18 +71,30 @@ public sealed partial class MainWindow : Window
             }
         };
 
-        // 起動時はフィルターにフォーカス
-        this.Activated += (_, _) => FilterBox.Focus(Microsoft.UI.Xaml.FocusState.Programmatic);
-
-        ApplyFilter("");
+        // 初回フォーカス
         this.Activated += MainWindow_Activated;
+
+        // 検索初期反映
+        ApplyFilter("");
+
+        // 起動直後の一覧ロード
         _ = DispatcherQueue.TryEnqueue(async () => await ReloadRunningWindowsAsync());
 
+        // Close されたら App.OpenWindows から除去（App 側で Add している前提）
+        this.Closed += (_, __) =>
+        {
+            try { App.OpenWindows.Remove(this); } catch { }
+        };
     }
+
     internal void InitializeForMonitor(IntPtr targetMonitor)
     {
         _targetMonitorForThisWindow = targetMonitor;
     }
+
+    // =========================
+    // Window / TitleBar
+    // =========================
     private AppWindow GetAppWindow()
     {
         if (_cachedAppWindow != null) return _cachedAppWindow;
@@ -201,6 +113,7 @@ public sealed partial class MainWindow : Window
             presenter.IsResizable = true;
         }
     }
+
     private void ConfigureTitleBarColors()
     {
         var appWindow = GetAppWindow();
@@ -223,19 +136,22 @@ public sealed partial class MainWindow : Window
         titleBar.ButtonBackgroundColor = bg;
         titleBar.ButtonForegroundColor = fg;
 
-        titleBar.ButtonHoverBackgroundColor =
-            isDark
-                ? Windows.UI.Color.FromArgb(255, 45, 45, 45)
-                : Windows.UI.Color.FromArgb(255, 230, 230, 230);
+        titleBar.ButtonHoverBackgroundColor = isDark
+            ? Windows.UI.Color.FromArgb(255, 45, 45, 45)
+            : Windows.UI.Color.FromArgb(255, 230, 230, 230);
 
-        titleBar.ButtonPressedBackgroundColor =
-            isDark
-                ? Windows.UI.Color.FromArgb(255, 60, 60, 60)
-                : Windows.UI.Color.FromArgb(255, 210, 210, 210);
+        titleBar.ButtonPressedBackgroundColor = isDark
+            ? Windows.UI.Color.FromArgb(255, 60, 60, 60)
+            : Windows.UI.Color.FromArgb(255, 210, 210, 210);
 
         titleBar.InactiveBackgroundColor = bg;
         titleBar.ButtonInactiveBackgroundColor = bg;
     }
+
+    private void SetWindowSize(int width, int height)
+        => GetAppWindow().Resize(new Windows.Graphics.SizeInt32(width, height));
+
+    // 表示前に Win32 で位置を当ててちらつきを減らす
     public void PrePositionToMonitorCenter(IntPtr hMon, int width, int height)
     {
         var hwnd = WindowNative.GetWindowHandle(this);
@@ -245,85 +161,64 @@ public sealed partial class MainWindow : Window
         if (!GetMonitorInfo(hMon, ref mi)) return;
 
         var work = mi.rcWork;
+
         int x = work.Left + (work.Right - work.Left - width) / 2;
         int y = work.Top + (work.Bottom - work.Top - height) / 2;
 
-        // ここで初期位置を確定（表示前に効く）
         SetWindowPos(hwnd, IntPtr.Zero, x, y, width, height,
             SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSENDCHANGING);
     }
-    private void SetWindowSize(int width, int height)
-        => GetAppWindow().Resize(new SizeInt32(width, height));
 
-    private void MakeTopMost()
+    private void MakeTopMostOnce()
     {
+        if (_topMostOnce) return;
+        _topMostOnce = true;
+
         var appWindow = GetAppWindow();
         if (appWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.IsAlwaysOnTop = true;
         }
     }
-    private static bool IsForegroundOurProcess()
-    {
-        var fg = GetForegroundWindow();
-        if (fg == IntPtr.Zero) return false;
 
-        GetWindowThreadProcessId(fg, out uint fgPid);
-        return fgPid == GetCurrentProcessId();
-    }
+    // =========================
+    // UI Events (Search / Activate / Click)
+    // =========================
     private void FilterBox_TextChanged(object sender, TextChangedEventArgs e)
         => ApplyFilter(FilterBox.Text);
+
+    private void SearchIcon_Click(object sender, RoutedEventArgs e)
+        => FilterBox.Focus(FocusState.Programmatic);
 
     private void ApplyFilter(string text)
     {
         var q = (text ?? "").Trim().ToLowerInvariant();
 
-        var items = string.IsNullOrEmpty(q)
-            ? AllItems
-            : new ObservableCollection<AppGroupItem>(
-                AllItems.Where(x =>
-                    (x.AppName ?? "").ToLowerInvariant().Contains(q) ||
-                    (x.Description ?? "").ToLowerInvariant().Contains(q)));
+        IEnumerable<AppGroupItem> items = AllItems;
+        if (!string.IsNullOrEmpty(q))
+        {
+            items = AllItems.Where(x =>
+                (x.AppName ?? "").ToLowerInvariant().Contains(q) ||
+                (x.Description ?? "").ToLowerInvariant().Contains(q));
+        }
 
         FilteredItems.Clear();
         foreach (var it in items) FilteredItems.Add(it);
     }
 
-    // ★クリック：このウィンドウがある（=担当する）モニターに寄せる → 全Atsumareを閉じる
-    private void GridView_ItemClick(object sender, ItemClickEventArgs e)
-    {
-        if (e.ClickedItem is not AppGroupItem item) return;
-
-        // ターゲット：このウィンドウに割り当てられたモニター（なければ自分のモニター）
-        var myHwnd = WindowNative.GetWindowHandle(this);
-        var targetMon = _targetMonitorForThisWindow != IntPtr.Zero
-            ? _targetMonitorForThisWindow
-            : MonitorFromWindow(myHwnd, MONITOR_DEFAULTTONEAREST);
-
-        // 寄せ
-        MoveAllWindowsOfProcessToMonitor(item.Pid, targetMon);
-
-        // 閉じる（操作後に即消える）
-        DispatcherQueue.TryEnqueue(CloseAllAtsumareWindows);
-    }
-
     private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
     {
+        // 非アクティブになったら閉じる（ただし自アプリ内のフォーカス移動は除外）
         if (args.WindowActivationState == WindowActivationState.Deactivated)
         {
-            // ★自分の別ウィンドウにフォーカスが移っただけなら閉じない
-            if (IsForegroundOurProcess())
-                return;
-
-            CloseAllAtsumareWindows();
+            if (!IsForegroundOurProcess())
+            {
+                CloseAllAtsumareWindows();
+            }
             return;
         }
 
-        if (!_topMostOnce)
-        {
-            _topMostOnce = true;
-            MakeTopMost();
-        }
+        MakeTopMostOnce();
 
         if (_focusedOnce) return;
         _focusedOnce = true;
@@ -335,43 +230,166 @@ public sealed partial class MainWindow : Window
         });
     }
 
-    private void SearchIcon_Click(object sender, RoutedEventArgs e)
+    // GridView click: そのアプリ(PID)の全ウィンドウをこのモニターへ寄せて、Atsumareを閉じる
+    private void GridView_ItemClick(object sender, ItemClickEventArgs e)
     {
-        FilterBox.Focus(FocusState.Programmatic);
+        if (e.ClickedItem is not AppGroupItem item) return;
+
+        var myHwnd = WindowNative.GetWindowHandle(this);
+        var targetMon = _targetMonitorForThisWindow != IntPtr.Zero
+            ? _targetMonitorForThisWindow
+            : MonitorFromWindow(myHwnd, MONITOR_DEFAULTTONEAREST);
+
+        MoveAllWindowsOfProcessToMonitor(item.Pid, targetMon);
+
+        // 操作後に即閉じる
+        DispatcherQueue.TryEnqueue(CloseAllAtsumareWindows);
     }
 
-    private void CloseAllAtsumareWindows()
+    // =========================
+    // Close all Atsumare windows (safe)
+    // =========================
+    private static bool _closingWindows; // アプリ全体でガード（MainWindow複数でも安全）
+
+    private static void CloseAllAtsumareWindows()
     {
-        var list = App.OpenWindows.ToList();
-        foreach (var w in list)
+        if (_closingWindows) return;
+        _closingWindows = true;
+
+        try
         {
-            try { w.Close(); } catch { }
+            foreach (var w in App.OpenWindows.ToArray())
+            {
+                try
+                {
+                    if (w == null) continue;
+                    if (w.IsClosing) continue;
+
+                    w.IsClosing = true;
+                    w.Close();
+                }
+                catch { }
+            }
         }
-        App.OpenWindows.Clear();
+        finally
+        {
+            _closingWindows = false;
+        }
     }
 
     // =========================
-    // ここが「指定アプリ(PID)の全ウィンドウを指定モニターへ寄せる」本体
-    //  - 最大化/スナップ（矩形）を維持
-    //  - 既に同じモニターならスキップ
+    // Move windows of a process to a monitor (keep maximize/snap)
     // =========================
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct WINDOWPLACEMENT
+    private void MoveAllWindowsOfProcessToMonitor(uint pid, IntPtr targetMonitor)
     {
-        public int length;
-        public int flags;
-        public int showCmd;
-        public POINT ptMinPosition;
-        public POINT ptMaxPosition;
-        public RECT rcNormalPosition;
+        if (pid == 0 || targetMonitor == IntPtr.Zero) return;
+
+        var tmi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+        if (!GetMonitorInfo(targetMonitor, ref tmi)) return;
+        var targetWork = tmi.rcWork;
+
+        var hwnds = EnumerateTopLevelWindowsByPid(pid);
+
+        foreach (var hWnd in hwnds)
+        {
+            // 既に同じモニターならスキップ
+            var currentMon = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
+            if (currentMon == targetMonitor)
+                continue;
+
+            var smi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+            if (!GetMonitorInfo(currentMon, ref smi))
+                continue;
+
+            var srcWork = smi.rcWork;
+
+            var wp = new WINDOWPLACEMENT { length = Marshal.SizeOf<WINDOWPLACEMENT>() };
+            bool hasWp = GetWindowPlacement(hWnd, ref wp);
+            int showCmd = hasWp ? wp.showCmd : SW_SHOWNORMAL;
+
+            bool wasMin = IsIconic(hWnd);
+            bool wasMax = showCmd == SW_SHOWMAXIMIZED;
+
+            if (wasMin)
+                ShowWindow(hWnd, SW_RESTORE);
+
+            if (!GetWindowRect(hWnd, out var curRect))
+                continue;
+
+            // 最大化は一旦通常にして rcNormalPosition を基準に動かす
+            if (wasMax && hasWp)
+            {
+                wp.showCmd = SW_SHOWNORMAL;
+                SetWindowPlacement(hWnd, ref wp);
+                curRect = wp.rcNormalPosition;
+            }
+
+            var mapped = MapRectByWorkArea(curRect, srcWork, targetWork);
+
+            bool ok = SetWindowPos(
+                hWnd,
+                IntPtr.Zero,
+                mapped.Left,
+                mapped.Top,
+                mapped.Right - mapped.Left,
+                mapped.Bottom - mapped.Top,
+                SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSENDCHANGING);
+
+            if (!ok)
+            {
+                int err = Marshal.GetLastWin32Error();
+                Debug.WriteLine($"SetWindowPos FAILED err={err} hwnd=0x{hWnd.ToInt64():X}");
+                continue;
+            }
+
+            // 状態復帰（最大化）
+            if (hasWp)
+            {
+                wp.rcNormalPosition = mapped;
+
+                if (wasMax)
+                {
+                    wp.showCmd = SW_SHOWMAXIMIZED;
+                    SetWindowPlacement(hWnd, ref wp);
+                    ShowWindow(hWnd, SW_MAXIMIZE);
+                }
+                else
+                {
+                    wp.showCmd = SW_SHOWNORMAL;
+                    SetWindowPlacement(hWnd, ref wp);
+                }
+            }
+            else
+            {
+                if (wasMax)
+                    ShowWindow(hWnd, SW_MAXIMIZE);
+            }
+        }
     }
 
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
+    private static List<IntPtr> EnumerateTopLevelWindowsByPid(uint pid)
+    {
+        var hwnds = new List<IntPtr>();
 
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool SetWindowPlacement(IntPtr hWnd, [In] ref WINDOWPLACEMENT lpwndpl);
+        EnumWindows((hWnd, _) =>
+        {
+            if (hWnd == IntPtr.Zero) return true;
+            if (!IsWindowVisible(hWnd)) return true;
+
+            GetWindowThreadProcessId(hWnd, out uint wpid);
+            if (wpid != pid) return true;
+
+            var exStyle = GetWindowLong(hWnd, GWL_EXSTYLE);
+            if ((exStyle & WS_EX_TOOLWINDOW) != 0) return true;
+
+            if (IsCloaked(hWnd)) return true;
+
+            hwnds.Add(hWnd);
+            return true;
+        }, IntPtr.Zero);
+
+        return hwnds;
+    }
 
     private static RECT MapRectByWorkArea(RECT r, RECT srcWork, RECT dstWork)
     {
@@ -402,117 +420,9 @@ public sealed partial class MainWindow : Window
         return new RECT { Left = left, Top = top, Right = left + w, Bottom = top + h };
     }
 
-    private void MoveAllWindowsOfProcessToMonitor(uint pid, IntPtr targetMonitor)
-    {
-        if (pid == 0 || targetMonitor == IntPtr.Zero) return;
-
-        var tmi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
-        if (!GetMonitorInfo(targetMonitor, ref tmi)) return;
-        var tWork = tmi.rcWork;
-
-        var hwnds = new List<IntPtr>();
-
-        EnumWindows((hWnd, _) =>
-        {
-            if (hWnd == IntPtr.Zero) return true;
-            if (!IsWindowVisible(hWnd)) return true;
-
-            GetWindowThreadProcessId(hWnd, out uint wpid);
-            if (wpid != pid) return true;
-
-            var exStyle = GetWindowLong(hWnd, GWL_EXSTYLE);
-            if ((exStyle & WS_EX_TOOLWINDOW) != 0) return true;
-
-            if (IsCloaked(hWnd)) return true;
-
-            hwnds.Add(hWnd);
-            return true;
-        }, IntPtr.Zero);
-
-        foreach (var hWnd in hwnds)
-        {
-            // ★既に同じディスプレイならスキップ
-            var currentMon = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
-            if (currentMon == targetMonitor)
-                continue;
-
-            // 元モニター work area
-            var smi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
-            if (!GetMonitorInfo(currentMon, ref smi)) continue;
-            var sWork = smi.rcWork;
-
-            // 状態
-            var wp = new WINDOWPLACEMENT { length = Marshal.SizeOf<WINDOWPLACEMENT>() };
-            bool hasWp = GetWindowPlacement(hWnd, ref wp);
-            int show = hasWp ? wp.showCmd : SW_SHOWNORMAL;
-
-            bool wasMin = IsIconic(hWnd);
-            bool wasMax = show == SW_SHOWMAXIMIZED;
-
-            if (wasMin)
-                ShowWindow(hWnd, SW_RESTORE);
-
-            // 現在矩形（スナップはここが効く）
-            if (!GetWindowRect(hWnd, out var curRect))
-                continue;
-
-            // 最大化は一旦通常へ（rcNormalPosition を基準に動かす）
-            if (wasMax && hasWp)
-            {
-                wp.showCmd = SW_SHOWNORMAL;
-                SetWindowPlacement(hWnd, ref wp);
-
-                curRect = wp.rcNormalPosition;
-            }
-
-            // ターゲットへ写像
-            var mapped = MapRectByWorkArea(curRect, sWork, tWork);
-
-            bool ok = SetWindowPos(
-                hWnd,
-                IntPtr.Zero,
-                mapped.Left,
-                mapped.Top,
-                mapped.Right - mapped.Left,
-                mapped.Bottom - mapped.Top,
-                SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSENDCHANGING);
-
-            if (!ok)
-            {
-                int err = Marshal.GetLastWin32Error();
-                Debug.WriteLine($"SetWindowPos FAILED err={err} hwnd=0x{hWnd.ToInt64():X}");
-                continue;
-            }
-
-            // 最大化復帰（rcNormalPosition も更新しておくと安定）
-            if (hasWp)
-            {
-                wp.rcNormalPosition = mapped;
-
-                if (wasMax)
-                {
-                    wp.showCmd = SW_SHOWMAXIMIZED;
-                    SetWindowPlacement(hWnd, ref wp);
-                    ShowWindow(hWnd, SW_MAXIMIZE);
-                }
-                else
-                {
-                    wp.showCmd = SW_SHOWNORMAL;
-                    SetWindowPlacement(hWnd, ref wp);
-                }
-            }
-            else
-            {
-                if (wasMax)
-                    ShowWindow(hWnd, SW_MAXIMIZE);
-            }
-        }
-    }
-
     // =========================
-    // 起動中ウィンドウ一覧作成（従来）
+    // Running windows list
     // =========================
-
     private async Task ReloadRunningWindowsAsync()
     {
         var windows = new List<(IntPtr hWnd, string title, uint pid)>();
@@ -541,10 +451,12 @@ public sealed partial class MainWindow : Window
             .GroupBy(w => w.pid)
             .Select(g =>
             {
+                // foreground が同PIDならそれを代表に
                 var fgItem = g.FirstOrDefault(x => x.hWnd == fg);
                 if (fgItem.hWnd != IntPtr.Zero)
                     return fgItem;
 
+                // 一番面積が大きいウィンドウを代表に
                 (IntPtr hWnd, string title, uint pid) best = default;
                 long bestArea = -1;
 
@@ -595,108 +507,8 @@ public sealed partial class MainWindow : Window
     }
 
     // =========================
-    // Icon / 判定系（従来）
+    // Icon helpers
     // =========================
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct ICONINFO
-    {
-        public bool fIcon;
-        public int xHotspot;
-        public int yHotspot;
-        public IntPtr hbmMask;
-        public IntPtr hbmColor;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct BITMAP
-    {
-        public int bmType;
-        public int bmWidth;
-        public int bmHeight;
-        public int bmWidthBytes;
-        public ushort bmPlanes;
-        public ushort bmBitsPixel;
-        public IntPtr bmBits;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct BITMAPINFOHEADER
-    {
-        public uint biSize;
-        public int biWidth;
-        public int biHeight;
-        public ushort biPlanes;
-        public ushort biBitCount;
-        public uint biCompression;
-        public uint biSizeImage;
-        public int biXPelsPerMeter;
-        public int biYPelsPerMeter;
-        public uint biClrUsed;
-        public uint biClrImportant;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct BITMAPINFO
-    {
-        public BITMAPINFOHEADER bmiHeader;
-        public uint bmiColors;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RECT
-    {
-        public int Left, Top, Right, Bottom;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MONITORINFO
-    {
-        public int cbSize;
-        public RECT rcMonitor;
-        public RECT rcWork;
-        public uint dwFlags;
-    }
-
-
-    private const int BI_RGB = 0;
-
-    [DllImport("user32.dll")]
-    private static extern bool GetIconInfo(IntPtr hIcon, out ICONINFO piconinfo);
-
-    [DllImport("gdi32.dll")]
-    private static extern int GetObject(IntPtr hgdiobj, int cbBuffer, out BITMAP lpvObject);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetDC(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
-
-    [DllImport("gdi32.dll")]
-    private static extern int GetDIBits(
-        IntPtr hdc,
-        IntPtr hbmp,
-        uint uStartScan,
-        uint cScanLines,
-        byte[] lpvBits,
-        ref BITMAPINFO lpbmi,
-        uint uUsage);
-
-    [DllImport("gdi32.dll")]
-    private static extern bool DeleteObject(IntPtr hObject);
-
-    [DllImport("user32.dll")]
-    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out int pvAttribute, int cbAttribute);
-
-    private const int DWMWA_CLOAKED = 14;
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetLastActivePopup(IntPtr hWnd);
-
     private async Task<ImageSource?> GetWindowIconAsync(IntPtr hWnd)
     {
         IntPtr hIcon = SendMessage(hWnd, WM_GETICON, (IntPtr)ICON_BIG, IntPtr.Zero);
@@ -741,7 +553,7 @@ public sealed partial class MainWindow : Window
             var bi = new BITMAPINFO();
             bi.bmiHeader.biSize = (uint)Marshal.SizeOf<BITMAPINFOHEADER>();
             bi.bmiHeader.biWidth = width;
-            bi.bmiHeader.biHeight = -height;
+            bi.bmiHeader.biHeight = -height; // top-down
             bi.bmiHeader.biPlanes = 1;
             bi.bmiHeader.biBitCount = 32;
             bi.bmiHeader.biCompression = BI_RGB;
@@ -774,6 +586,9 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    // =========================
+    // Window filters / info helpers
+    // =========================
     private static bool IsAltTabWindow(IntPtr hWnd)
     {
         if (!IsWindowVisible(hWnd))
@@ -865,6 +680,225 @@ public sealed partial class MainWindow : Window
             return fallback;
         }
     }
+
+    private static bool IsForegroundOurProcess()
+    {
+        var fg = GetForegroundWindow();
+        if (fg == IntPtr.Zero) return false;
+
+        GetWindowThreadProcessId(fg, out uint fgPid);
+        return fgPid == GetCurrentProcessId();
+    }
+
+    // =========================
+    // Win32 (P/Invoke / structs / constants)
+    // =========================
+    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT { public int X; public int Y; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT { public int Left, Top, Right, Bottom; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MONITORINFO
+    {
+        public int cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public uint dwFlags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WINDOWPLACEMENT
+    {
+        public int length;
+        public int flags;
+        public int showCmd;
+        public POINT ptMinPosition;
+        public POINT ptMaxPosition;
+        public RECT rcNormalPosition;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ICONINFO
+    {
+        public bool fIcon;
+        public int xHotspot;
+        public int yHotspot;
+        public IntPtr hbmMask;
+        public IntPtr hbmColor;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct BITMAP
+    {
+        public int bmType;
+        public int bmWidth;
+        public int bmHeight;
+        public int bmWidthBytes;
+        public ushort bmPlanes;
+        public ushort bmBitsPixel;
+        public IntPtr bmBits;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct BITMAPINFOHEADER
+    {
+        public uint biSize;
+        public int biWidth;
+        public int biHeight;
+        public ushort biPlanes;
+        public ushort biBitCount;
+        public uint biCompression;
+        public uint biSizeImage;
+        public int biXPelsPerMeter;
+        public int biYPelsPerMeter;
+        public uint biClrUsed;
+        public uint biClrImportant;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct BITMAPINFO
+    {
+        public BITMAPINFOHEADER bmiHeader;
+        public uint bmiColors;
+    }
+
+    private const uint MONITOR_DEFAULTTONEAREST = 2;
+
+    private const int GWL_EXSTYLE = -20;
+    private const int WS_EX_TOOLWINDOW = 0x00000080;
+
+    private const int WM_GETICON = 0x007F;
+    private const int ICON_SMALL = 0;
+    private const int ICON_BIG = 1;
+    private const int ICON_SMALL2 = 2;
+
+    private const int GCLP_HICON = -14;
+    private const int GCLP_HICONSM = -34;
+
+    private const uint GA_ROOTOWNER = 3;
+
+    private const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+
+    private const uint SWP_NOZORDER = 0x0004;
+    private const uint SWP_NOACTIVATE = 0x0010;
+    private const uint SWP_NOSENDCHANGING = 0x0400;
+
+    private const int SW_RESTORE = 9;
+    private const int SW_SHOWNORMAL = 1;
+    private const int SW_SHOWMAXIMIZED = 3;
+    private const int SW_MAXIMIZE = 3;
+
+    private const int BI_RGB = 0;
+
+    private const int DWMWA_CLOAKED = 14;
+
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+
+    [DllImport("user32.dll")]
+    private static extern int GetWindowTextLength(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetClassLongPtr(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetAncestor(IntPtr hWnd, uint gaFlags);
+
+    [DllImport("user32.dll")]
+    private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowPos(
+        IntPtr hWnd,
+        IntPtr hWndInsertAfter,
+        int X,
+        int Y,
+        int cx,
+        int cy,
+        uint uFlags);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentProcessId();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr OpenProcess(uint desiredAccess, bool inheritHandle, uint processId);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool CloseHandle(IntPtr hObject);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool QueryFullProcessImageName(IntPtr hProcess, int flags, StringBuilder exeName, ref int size);
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmGetWindowAttribute(IntPtr hwnd, int dwAttribute, out int pvAttribute, int cbAttribute);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowPlacement(IntPtr hWnd, [In] ref WINDOWPLACEMENT lpwndpl);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetLastActivePopup(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetDC(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+
+    [DllImport("gdi32.dll")]
+    private static extern int GetObject(IntPtr hgdiobj, int cbBuffer, out BITMAP lpvObject);
+
+    [DllImport("gdi32.dll")]
+    private static extern int GetDIBits(
+        IntPtr hdc,
+        IntPtr hbmp,
+        uint uStartScan,
+        uint cScanLines,
+        byte[] lpvBits,
+        ref BITMAPINFO lpbmi,
+        uint uUsage);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetIconInfo(IntPtr hIcon, out ICONINFO piconinfo);
+
+    [DllImport("gdi32.dll")]
+    private static extern bool DeleteObject(IntPtr hObject);
 }
 
 public sealed class AppGroupItem

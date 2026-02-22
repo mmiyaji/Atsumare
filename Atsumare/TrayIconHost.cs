@@ -172,7 +172,7 @@ namespace Atsumare
 
                 if (mouseMsg == WM_LBUTTONUP)
                 {
-                    Log("Left click -> RequestShow");
+                    Log("Left click -> RequestToggle");
                     _onShow(); // = App.RequestShow()
                 }
                 else if (mouseMsg == WM_RBUTTONUP)
@@ -190,7 +190,7 @@ namespace Atsumare
 
                 if (id == IDM_SHOW)
                 {
-                    Log("Menu -> RequestShow");
+                    Log("Menu -> RequestToggle");
                     _onShow();
                 }
                 if (id == IDM_EXIT)
