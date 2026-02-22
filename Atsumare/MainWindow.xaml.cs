@@ -255,42 +255,6 @@ public sealed partial class MainWindow : Window
     private void SetWindowSize(int width, int height)
         => GetAppWindow().Resize(new SizeInt32(width, height));
 
-    public void MoveToMonitorCenter(IntPtr hMon, int width, int height, int retry = 10)
-    {
-        if (_closing) return;
-        _ = DispatcherQueue.TryEnqueue(() =>
-        {
-            if (_closing) return;
-            var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
-            if (!GetMonitorInfo(hMon, ref mi)) return;
-
-            var work = mi.rcWork;
-            int x = work.Left + (work.Right - work.Left - width) / 2;
-            int y = work.Top + (work.Bottom - work.Top - height) / 2;
-
-            try
-            {
-                var aw = GetAppWindow();
-                if (aw?.Presenter is not OverlappedPresenter)
-                {
-                    if (retry > 0 && !_closing)
-                    {
-                        Debug.WriteLine("Presenter not ready. Retry Move/Resize...");
-                        // 少し後に再試行
-                        _ = DispatcherQueue.TryEnqueue(() => MoveToMonitorCenter(hMon, width, height, retry - 1));
-                    }
-                    return;
-                }
-
-                aw.Resize(new SizeInt32(width, height));
-                aw.Move(new PointInt32(x, y));
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine("MoveToMonitorCenter failed: " + ex);
-            }
-        });
-    }
     private void MakeTopMost()
     {
         var appWindow = GetAppWindow();
@@ -307,8 +271,6 @@ public sealed partial class MainWindow : Window
         GetWindowThreadProcessId(fg, out uint fgPid);
         return fgPid == GetCurrentProcessId();
     }
-    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _deactivateCloseTimer;
-    private bool _closing;
     private void FilterBox_TextChanged(object sender, TextChangedEventArgs e)
         => ApplyFilter(FilterBox.Text);
 
@@ -349,45 +311,20 @@ public sealed partial class MainWindow : Window
     {
         if (args.WindowActivationState == WindowActivationState.Deactivated)
         {
-            if (_closing) return;
-
-            // ★起動中は自動クローズしない
-            if (AppState.Bootstrapping)
+            // ★自分の別ウィンドウにフォーカスが移っただけなら閉じない
+            if (IsForegroundOurProcess())
                 return;
 
-            // ★即閉じせず、少し待ってから「本当に他アプリか」判定
-            _deactivateCloseTimer ??= DispatcherQueue.CreateTimer();
-            _deactivateCloseTimer.Stop();
-            _deactivateCloseTimer.Interval = TimeSpan.FromMilliseconds(150);
-            _deactivateCloseTimer.IsRepeating = false;
-            _deactivateCloseTimer.Tick += (_, __) =>
-            {
-                _deactivateCloseTimer?.Stop();
-
-                if (_closing) return;
-
-                // 前面が自プロセスなら（Atsumare同士の切替等）閉じない
-                if (IsForegroundOurProcess())
-                    return;
-
-                CloseAllAtsumareWindows();
-            };
-            _deactivateCloseTimer.Start();
-
+            CloseAllAtsumareWindows();
             return;
         }
 
-        // アクティブになったら「閉じ予約」をキャンセル
-        _deactivateCloseTimer?.Stop();
-
-        // 初回だけTopMost
         if (!_topMostOnce)
         {
             _topMostOnce = true;
             MakeTopMost();
         }
 
-        // 初回だけフォーカス
         if (_focusedOnce) return;
         _focusedOnce = true;
 
@@ -405,15 +342,10 @@ public sealed partial class MainWindow : Window
 
     private void CloseAllAtsumareWindows()
     {
-        if (_closing) return;
-        _closing = true;
-
-        Debug.WriteLine("CloseAllAtsumareWindows called");
-
         var list = App.OpenWindows.ToList();
         foreach (var w in list)
         {
-            try { w._closing = true; w.Close(); } catch { }
+            try { w.Close(); } catch { }
         }
         App.OpenWindows.Clear();
     }
@@ -711,13 +643,13 @@ public sealed partial class MainWindow : Window
         public uint bmiColors;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 4)]
+    [StructLayout(LayoutKind.Sequential)]
     private struct RECT
     {
         public int Left, Top, Right, Bottom;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 4)]
+    [StructLayout(LayoutKind.Sequential)]
     private struct MONITORINFO
     {
         public int cbSize;
@@ -725,6 +657,7 @@ public sealed partial class MainWindow : Window
         public RECT rcWork;
         public uint dwFlags;
     }
+
 
     private const int BI_RGB = 0;
 
