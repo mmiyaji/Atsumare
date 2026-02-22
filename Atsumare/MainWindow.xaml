@@ -1,22 +1,99 @@
-<?xml version="1.0" encoding="utf-8"?>
 <Window
     x:Class="Atsumare.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Atsumare"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d"
     Title="Atsumare">
+    <Border CornerRadius="20"
+            Padding="16"
+            Background="Transparent">
 
-    <Window.SystemBackdrop>
-        <MicaBackdrop />
-    </Window.SystemBackdrop>
+        <Grid Padding="16" RowDefinitions="Auto,*" RowSpacing="12">
+            <TextBox x:Name="FilterBox"
+                 PlaceholderText="アプリ検索..."
+                 FontSize="16"
+                 Height="44"
+                 CornerRadius="12"
+                 VerticalContentAlignment="Center"
+                 Padding="44,8,12,4"
+                 TextChanged="FilterBox_TextChanged"/>
 
-    <Grid>
-        <StackPanel Spacing="12" Padding="20">
-            <Button Content="オーバーレイ表示" Click="ShowOverlay_Click"/>
-            <Button Content="移動テスト" Click="TestMoveChrome_Click"/>
-        </StackPanel>
-    </Grid>
+            <Button Width="40"
+                Height="36"
+                Margin="6,0,6,0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Center"
+                Background="Transparent"
+                BorderThickness="0"
+                IsTabStop="False"
+                Click="SearchIcon_Click">
+                <FontIcon Glyph="&#xE721;"
+                    FontFamily="Segoe MDL2 Assets"
+                    FontSize="16"
+                    Opacity="0.75"/>
+            </Button>
+            <GridView x:Name="AppsGrid"
+                Grid.Row="1"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Stretch"
+                SizeChanged="AppsGrid_SizeChanged"
+                ItemsSource="{x:Bind FilteredItems, Mode=OneWay}"
+                IsItemClickEnabled="True"
+                ItemClick="GridView_ItemClick"
+                SelectionMode="None"
+                IsTabStop="False">
+
+                <GridView.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <ItemsWrapGrid x:Name="WrapPanel"
+                            Orientation="Horizontal"
+                            ItemHeight="132"/>
+                    </ItemsPanelTemplate>
+                </GridView.ItemsPanel>
+
+                <GridView.ItemContainerStyle>
+                    <Style TargetType="GridViewItem">
+                        <Setter Property="Height" Value="120"/>
+                        <Setter Property="Margin" Value="6"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                        <Setter Property="CornerRadius" Value="14"/>
+                        <Setter Property="UseSystemFocusVisuals" Value="False"/>
+                    </Style>
+                </GridView.ItemContainerStyle>
+
+                <GridView.ItemTemplate>
+                    <DataTemplate x:DataType="local:AppGroupItem">
+                        <Border CornerRadius="14"
+                            Padding="12"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1">
+                            <Border.Shadow>
+                                <ThemeShadow/>
+                            </Border.Shadow>
+
+                            <Grid RowDefinitions="*,Auto" RowSpacing="10">
+                                <!-- 上：アイコン -->
+                                <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <Image Width="56"
+                                       Height="56"
+                                       Stretch="Uniform"
+                                       Source="{x:Bind Icon}" />
+                                </Grid>
+                                <!-- 下：アプリ名 -->
+                                <TextBlock Grid.Row="1"
+                                   Text="{x:Bind AppName}"
+                                   FontSize="13"
+                                   HorizontalAlignment="Center"
+                                   TextAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxLines="1"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </GridView.ItemTemplate>
+            </GridView>
+        </Grid>
+    </Border>
 </Window>

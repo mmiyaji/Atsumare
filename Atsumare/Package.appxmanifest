@@ -8,11 +8,11 @@
   IgnorableNamespaces="uap rescap">
 
   <Identity
-    Name="ece9a892-a05b-42f2-ba4c-7d49db8f315e"
+    Name="9da1b0ea-41f3-410c-a252-75f6344fedc1"
     Publisher="CN=mail"
     Version="1.0.0.0" />
 
-  <mp:PhoneIdentity PhoneProductId="ece9a892-a05b-42f2-ba4c-7d49db8f315e" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+  <mp:PhoneIdentity PhoneProductId="9da1b0ea-41f3-410c-a252-75f6344fedc1" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
     <DisplayName>Atsumare</DisplayName>
