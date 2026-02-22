@@ -154,6 +154,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
 
         ConfigureWindow();
+        ConfigureTitleBarColors();
         SetWindowSize(820, 540);
 
         try
@@ -198,7 +199,41 @@ public sealed partial class MainWindow : Window
             presenter.IsResizable = true;
         }
     }
+    private void ConfigureTitleBarColors()
+    {
+        var appWindow = GetAppWindow();
+        var titleBar = appWindow.TitleBar;
+        titleBar.ExtendsContentIntoTitleBar = true;
 
+        var root = this.Content as FrameworkElement;
+        var isDark = root?.ActualTheme == ElementTheme.Dark;
+
+        var bg = isDark
+            ? Windows.UI.Color.FromArgb(255, 32, 32, 32)
+            : Windows.UI.Color.FromArgb(255, 245, 245, 245);
+
+        var fg = isDark
+            ? Windows.UI.Color.FromArgb(255, 255, 255, 255)
+            : Windows.UI.Color.FromArgb(255, 0, 0, 0);
+
+        titleBar.BackgroundColor = bg;
+        titleBar.ForegroundColor = fg;
+        titleBar.ButtonBackgroundColor = bg;
+        titleBar.ButtonForegroundColor = fg;
+
+        titleBar.ButtonHoverBackgroundColor =
+            isDark
+                ? Windows.UI.Color.FromArgb(255, 45, 45, 45)
+                : Windows.UI.Color.FromArgb(255, 230, 230, 230);
+
+        titleBar.ButtonPressedBackgroundColor =
+            isDark
+                ? Windows.UI.Color.FromArgb(255, 60, 60, 60)
+                : Windows.UI.Color.FromArgb(255, 210, 210, 210);
+
+        titleBar.InactiveBackgroundColor = bg;
+        titleBar.ButtonInactiveBackgroundColor = bg;
+    }
     private void SetWindowSize(int width, int height)
         => GetAppWindow().Resize(new SizeInt32(width, height));
 
