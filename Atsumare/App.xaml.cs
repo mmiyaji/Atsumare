@@ -41,8 +41,9 @@ namespace Atsumare
                 var w = new MainWindow();
                 w.InitializeForMonitor(mon);
                 OpenWindows.Add(w);
+                w.PrePositionToMonitorCenter(mon, 820, 540);
+                //w.MoveToMonitorCenter(mon, 820, 540);
                 w.Activate();
-                w.MoveToMonitorCenter(mon, 820, 540);
             }
 
             // ★重要：複数Activate直後はフォーカスが揺れるので、少し待ってから自動クローズを有効化

@@ -236,8 +236,22 @@ public sealed partial class MainWindow : Window
         titleBar.InactiveBackgroundColor = bg;
         titleBar.ButtonInactiveBackgroundColor = bg;
     }
+    public void PrePositionToMonitorCenter(IntPtr hMon, int width, int height)
+    {
+        var hwnd = WindowNative.GetWindowHandle(this);
+        if (hwnd == IntPtr.Zero) return;
 
+        var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+        if (!GetMonitorInfo(hMon, ref mi)) return;
 
+        var work = mi.rcWork;
+        int x = work.Left + (work.Right - work.Left - width) / 2;
+        int y = work.Top + (work.Bottom - work.Top - height) / 2;
+
+        // ここで初期位置を確定（表示前に効く）
+        SetWindowPos(hwnd, IntPtr.Zero, x, y, width, height,
+            SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSENDCHANGING);
+    }
     private void SetWindowSize(int width, int height)
         => GetAppWindow().Resize(new SizeInt32(width, height));
 
