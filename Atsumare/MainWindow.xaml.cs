@@ -337,8 +337,14 @@ public sealed partial class MainWindow : Window
 
         foreach (var hWnd in hwnds)
         {
+
             // å≥ÉÇÉjÉ^Å[(work area)ÇéÊìæ
             var srcMon = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
+            if (srcMon == targetMonitor)
+            {
+                Debug.WriteLine($"Skip (already on target monitor): 0x{hWnd.ToInt64():X}");
+                continue;
+            }
             var smi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
             if (!GetMonitorInfo(srcMon, ref smi)) continue;
             var sWork = smi.rcWork;
