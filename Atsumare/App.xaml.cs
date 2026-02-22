@@ -1,50 +1,81 @@
-﻿using System;
+﻿using Microsoft.UI.Xaml;
+using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using Microsoft.UI.Xaml.Shapes;
-using Windows.ApplicationModel;
-using Windows.ApplicationModel.Activation;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+using System.Runtime.InteropServices;
 
 namespace Atsumare
 {
-    /// <summary>
-    /// Provides application-specific behavior to supplement the default Application class.
-    /// </summary>
     public partial class App : Application
     {
-        private Window? _window;
-
-        /// <summary>
-        /// Initializes the singleton application object.  This is the first line of authored code
-        /// executed, and as such is the logical equivalent of main() or WinMain().
-        /// </summary>
+        internal static readonly List<MainWindow> OpenWindows = new();
+        internal static class AppState
+        {
+            public static volatile bool Bootstrapping = true;
+        }
         public App()
         {
             InitializeComponent();
         }
 
-        /// <summary>
-        /// Invoked when the application is launched.
-        /// </summary>
-        /// <param name="args">Details about the launch request and process.</param>
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
-            _window = new MainWindow();
-            _window.Activate();
+            var monitors = MonitorUtil.GetAllMonitors();
+
+            if (monitors.Count <= 1)
+            {
+                var w = new MainWindow();
+                if (monitors.Count == 1) w.InitializeForMonitor(monitors[0]);
+                OpenWindows.Add(w);
+                w.Activate();
+
+                // 起動直後の切替が落ち着いたら有効化
+                _ = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread().TryEnqueue(() =>
+                {
+                    AppState.Bootstrapping = false;
+                });
+                return;
+            }
+
+            foreach (var mon in monitors)
+            {
+                var w = new MainWindow();
+                w.InitializeForMonitor(mon);
+                OpenWindows.Add(w);
+                w.Activate();
+                w.MoveToMonitorCenter(mon, 820, 540);
+            }
+
+            // ★重要：複数Activate直後はフォーカスが揺れるので、少し待ってから自動クローズを有効化
+            var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            var timer = dq.CreateTimer();
+            timer.Interval = TimeSpan.FromMilliseconds(300);
+            timer.IsRepeating = false;
+            timer.Tick += (_, __) =>
+            {
+                AppState.Bootstrapping = false;
+                timer.Stop();
+            };
+            timer.Start();
+        }
+
+    }
+
+    internal static class MonitorUtil
+    {
+        private delegate bool EnumMonitorsProc(IntPtr hMonitor, IntPtr hdcMonitor, IntPtr lprcMonitor, IntPtr dwData);
+
+        [DllImport("user32.dll")]
+        private static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr lprcClip, EnumMonitorsProc lpfnEnum, IntPtr dwData);
+
+        internal static List<IntPtr> GetAllMonitors()
+        {
+            var list = new List<IntPtr>();
+            EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (hMon, _, __, ___) =>
+            {
+                list.Add(hMon);
+                return true;
+            }, IntPtr.Zero);
+            return list;
         }
     }
 }

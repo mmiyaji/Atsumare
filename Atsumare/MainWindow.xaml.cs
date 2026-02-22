@@ -3,7 +3,6 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
@@ -18,8 +17,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Windows.Graphics;
 using Windows.Graphics.Imaging;
-using Windows.Storage.Streams;
 using WinRT.Interop;
+using static Atsumare.App;
 
 namespace Atsumare;
 
@@ -27,7 +26,11 @@ public sealed partial class MainWindow : Window
 {
     public ObservableCollection<AppGroupItem> AllItems { get; } = new();
     public ObservableCollection<AppGroupItem> FilteredItems { get; } = new();
+
     private bool _focusedOnce;
+
+    // ★このウィンドウが担当するターゲットモニター（クリック時にここへ寄せる）
+    private IntPtr _targetMonitorForThisWindow = IntPtr.Zero;
 
     private double _tileWidth = 180;
     public double TileWidth
@@ -64,25 +67,19 @@ public sealed partial class MainWindow : Window
     private static extern IntPtr GetClassLongPtr(IntPtr hWnd, int nIndex);
 
     [DllImport("user32.dll")]
-    private static extern bool DestroyIcon(IntPtr hIcon);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
-
-    [DllImport("user32.dll")]
     private static extern IntPtr GetAncestor(IntPtr hWnd, uint gaFlags);
 
     [DllImport("user32.dll")]
     private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
 
     [DllImport("kernel32.dll", SetLastError = true)]
-    static extern IntPtr OpenProcess(uint desiredAccess, bool inheritHandle, uint processId);
+    private static extern IntPtr OpenProcess(uint desiredAccess, bool inheritHandle, uint processId);
 
     [DllImport("kernel32.dll", SetLastError = true)]
-    static extern bool CloseHandle(IntPtr hObject);
+    private static extern bool CloseHandle(IntPtr hObject);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    static extern bool QueryFullProcessImageName(IntPtr hProcess, int flags, StringBuilder exeName, ref int size);
+    private static extern bool QueryFullProcessImageName(IntPtr hProcess, int flags, StringBuilder exeName, ref int size);
 
     [DllImport("user32.dll")]
     private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
@@ -111,23 +108,20 @@ public sealed partial class MainWindow : Window
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentProcessId();
 
     [StructLayout(LayoutKind.Sequential)]
     private struct POINT { public int X; public int Y; }
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
 
     private const uint MONITOR_DEFAULTTONEAREST = 2;
 
     private const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
 
-    private const uint GW_OWNER = 4;
     private const uint GA_ROOTOWNER = 3;
 
     private const int GWL_EXSTYLE = -20;
     private const int WS_EX_TOOLWINDOW = 0x00000080;
-    private const int WS_EX_APPWINDOW = 0x00040000;
 
     private const int WM_GETICON = 0x007F;
     private const int ICON_SMALL = 0;
@@ -139,15 +133,16 @@ public sealed partial class MainWindow : Window
 
     #endregion
 
-    const uint SWP_NOZORDER = 0x0004;
-    const uint SWP_NOACTIVATE = 0x0010;
-    const uint SWP_NOSENDCHANGING = 0x0400;
-    const uint SWP_NOSIZE = 0x0001;
+    private const uint SWP_NOZORDER = 0x0004;
+    private const uint SWP_NOACTIVATE = 0x0010;
+    private const uint SWP_NOSENDCHANGING = 0x0400;
 
-    const int SW_RESTORE = 9;
+    private const int SW_RESTORE = 9;
     private const int SW_SHOWNORMAL = 1;
     private const int SW_SHOWMAXIMIZED = 3;
     private const int SW_MAXIMIZE = 3;
+    private bool _topMostOnce;
+    private AppWindow? _cachedAppWindow;
 
     public MainWindow()
     {
@@ -166,13 +161,13 @@ public sealed partial class MainWindow : Window
             SystemBackdrop = null;
         }
 
-        // Escで確実に閉じる（TextBoxフォーカスでもOK）
+        // Escで閉じる
         this.Content.PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Windows.System.VirtualKey.Escape)
             {
                 e.Handled = true;
-                Close();
+                CloseAllAtsumareWindows();
             }
         };
 
@@ -182,13 +177,20 @@ public sealed partial class MainWindow : Window
         ApplyFilter("");
         this.Activated += MainWindow_Activated;
         _ = DispatcherQueue.TryEnqueue(async () => await ReloadRunningWindowsAsync());
-    }
 
+    }
+    internal void InitializeForMonitor(IntPtr targetMonitor)
+    {
+        _targetMonitorForThisWindow = targetMonitor;
+    }
     private AppWindow GetAppWindow()
     {
+        if (_cachedAppWindow != null) return _cachedAppWindow;
+
         var hwnd = WindowNative.GetWindowHandle(this);
         var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
-        return AppWindow.GetFromWindowId(windowId);
+        _cachedAppWindow = AppWindow.GetFromWindowId(windowId);
+        return _cachedAppWindow;
     }
 
     private void ConfigureWindow()
@@ -234,9 +236,65 @@ public sealed partial class MainWindow : Window
         titleBar.InactiveBackgroundColor = bg;
         titleBar.ButtonInactiveBackgroundColor = bg;
     }
+
+
     private void SetWindowSize(int width, int height)
         => GetAppWindow().Resize(new SizeInt32(width, height));
 
+    public void MoveToMonitorCenter(IntPtr hMon, int width, int height, int retry = 10)
+    {
+        if (_closing) return;
+        _ = DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_closing) return;
+            var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+            if (!GetMonitorInfo(hMon, ref mi)) return;
+
+            var work = mi.rcWork;
+            int x = work.Left + (work.Right - work.Left - width) / 2;
+            int y = work.Top + (work.Bottom - work.Top - height) / 2;
+
+            try
+            {
+                var aw = GetAppWindow();
+                if (aw?.Presenter is not OverlappedPresenter)
+                {
+                    if (retry > 0 && !_closing)
+                    {
+                        Debug.WriteLine("Presenter not ready. Retry Move/Resize...");
+                        // 少し後に再試行
+                        _ = DispatcherQueue.TryEnqueue(() => MoveToMonitorCenter(hMon, width, height, retry - 1));
+                    }
+                    return;
+                }
+
+                aw.Resize(new SizeInt32(width, height));
+                aw.Move(new PointInt32(x, y));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("MoveToMonitorCenter failed: " + ex);
+            }
+        });
+    }
+    private void MakeTopMost()
+    {
+        var appWindow = GetAppWindow();
+        if (appWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.IsAlwaysOnTop = true;
+        }
+    }
+    private static bool IsForegroundOurProcess()
+    {
+        var fg = GetForegroundWindow();
+        if (fg == IntPtr.Zero) return false;
+
+        GetWindowThreadProcessId(fg, out uint fgPid);
+        return fgPid == GetCurrentProcessId();
+    }
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _deactivateCloseTimer;
+    private bool _closing;
     private void FilterBox_TextChanged(object sender, TextChangedEventArgs e)
         => ApplyFilter(FilterBox.Text);
 
@@ -255,29 +313,74 @@ public sealed partial class MainWindow : Window
         foreach (var it in items) FilteredItems.Add(it);
     }
 
-    // クリックしたアプリ(PID)の全ウィンドウを、指定モニターへまとめる
+    // ★クリック：このウィンドウがある（=担当する）モニターに寄せる → 全Atsumareを閉じる
     private void GridView_ItemClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is not AppGroupItem item) return;
 
-        // 例：この MainWindow のいるモニターへまとめる
+        // ターゲット：このウィンドウに割り当てられたモニター（なければ自分のモニター）
         var myHwnd = WindowNative.GetWindowHandle(this);
-        var targetMon = MonitorFromWindow(myHwnd, MONITOR_DEFAULTTONEAREST);
+        var targetMon = _targetMonitorForThisWindow != IntPtr.Zero
+            ? _targetMonitorForThisWindow
+            : MonitorFromWindow(myHwnd, MONITOR_DEFAULTTONEAREST);
 
-        MoveAllWindowsOfProcessToMonitor(item.Pid, targetMon, excludeHwnd: myHwnd);
+        // 寄せ
+        MoveAllWindowsOfProcessToMonitor(item.Pid, targetMon);
+
+        // 閉じる（操作後に即消える）
+        DispatcherQueue.TryEnqueue(CloseAllAtsumareWindows);
     }
 
     private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
     {
-        if (_focusedOnce) return;
-        if (args.WindowActivationState == WindowActivationState.Deactivated) return;
+        if (args.WindowActivationState == WindowActivationState.Deactivated)
+        {
+            if (_closing) return;
 
+            // ★起動中は自動クローズしない
+            if (AppState.Bootstrapping)
+                return;
+
+            // ★即閉じせず、少し待ってから「本当に他アプリか」判定
+            _deactivateCloseTimer ??= DispatcherQueue.CreateTimer();
+            _deactivateCloseTimer.Stop();
+            _deactivateCloseTimer.Interval = TimeSpan.FromMilliseconds(150);
+            _deactivateCloseTimer.IsRepeating = false;
+            _deactivateCloseTimer.Tick += (_, __) =>
+            {
+                _deactivateCloseTimer?.Stop();
+
+                if (_closing) return;
+
+                // 前面が自プロセスなら（Atsumare同士の切替等）閉じない
+                if (IsForegroundOurProcess())
+                    return;
+
+                CloseAllAtsumareWindows();
+            };
+            _deactivateCloseTimer.Start();
+
+            return;
+        }
+
+        // アクティブになったら「閉じ予約」をキャンセル
+        _deactivateCloseTimer?.Stop();
+
+        // 初回だけTopMost
+        if (!_topMostOnce)
+        {
+            _topMostOnce = true;
+            MakeTopMost();
+        }
+
+        // 初回だけフォーカス
+        if (_focusedOnce) return;
         _focusedOnce = true;
 
         DispatcherQueue.TryEnqueue(() =>
         {
-            FilterBox.Focus(FocusState.Programmatic);
-            FilterBox.SelectAll();
+            FilterBox?.Focus(FocusState.Programmatic);
+            FilterBox?.SelectAll();
         });
     }
 
@@ -286,8 +389,25 @@ public sealed partial class MainWindow : Window
         FilterBox.Focus(FocusState.Programmatic);
     }
 
+    private void CloseAllAtsumareWindows()
+    {
+        if (_closing) return;
+        _closing = true;
+
+        Debug.WriteLine("CloseAllAtsumareWindows called");
+
+        var list = App.OpenWindows.ToList();
+        foreach (var w in list)
+        {
+            try { w._closing = true; w.Close(); } catch { }
+        }
+        App.OpenWindows.Clear();
+    }
+
     // =========================
-    // PIDの全ウィンドウを指定モニターへ移動
+    // ここが「指定アプリ(PID)の全ウィンドウを指定モニターへ寄せる」本体
+    //  - 最大化/スナップ（矩形）を維持
+    //  - 既に同じモニターならスキップ
     // =========================
 
     [StructLayout(LayoutKind.Sequential)]
@@ -307,7 +427,36 @@ public sealed partial class MainWindow : Window
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool SetWindowPlacement(IntPtr hWnd, [In] ref WINDOWPLACEMENT lpwndpl);
 
-    private void MoveAllWindowsOfProcessToMonitor(uint pid, IntPtr targetMonitor, IntPtr excludeHwnd)
+    private static RECT MapRectByWorkArea(RECT r, RECT srcWork, RECT dstWork)
+    {
+        int sw = Math.Max(1, srcWork.Right - srcWork.Left);
+        int sh = Math.Max(1, srcWork.Bottom - srcWork.Top);
+
+        int dw = Math.Max(1, dstWork.Right - dstWork.Left);
+        int dh = Math.Max(1, dstWork.Bottom - dstWork.Top);
+
+        double rx = (double)(r.Left - srcWork.Left) / sw;
+        double ry = (double)(r.Top - srcWork.Top) / sh;
+        double rw = (double)(r.Right - r.Left) / sw;
+        double rh = (double)(r.Bottom - r.Top) / sh;
+
+        int left = dstWork.Left + (int)Math.Round(rx * dw);
+        int top = dstWork.Top + (int)Math.Round(ry * dh);
+        int w = (int)Math.Round(rw * dw);
+        int h = (int)Math.Round(rh * dh);
+
+        w = Math.Max(50, w);
+        h = Math.Max(50, h);
+
+        if (left + w > dstWork.Right) left = dstWork.Right - w;
+        if (top + h > dstWork.Bottom) top = dstWork.Bottom - h;
+        if (left < dstWork.Left) left = dstWork.Left;
+        if (top < dstWork.Top) top = dstWork.Top;
+
+        return new RECT { Left = left, Top = top, Right = left + w, Bottom = top + h };
+    }
+
+    private void MoveAllWindowsOfProcessToMonitor(uint pid, IntPtr targetMonitor)
     {
         if (pid == 0 || targetMonitor == IntPtr.Zero) return;
 
@@ -320,7 +469,6 @@ public sealed partial class MainWindow : Window
         EnumWindows((hWnd, _) =>
         {
             if (hWnd == IntPtr.Zero) return true;
-            if (hWnd == excludeHwnd) return true;
             if (!IsWindowVisible(hWnd)) return true;
 
             GetWindowThreadProcessId(hWnd, out uint wpid);
@@ -337,19 +485,17 @@ public sealed partial class MainWindow : Window
 
         foreach (var hWnd in hwnds)
         {
-
-            // 元モニター(work area)を取得
-            var srcMon = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
-            if (srcMon == targetMonitor)
-            {
-                Debug.WriteLine($"Skip (already on target monitor): 0x{hWnd.ToInt64():X}");
+            // ★既に同じディスプレイならスキップ
+            var currentMon = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
+            if (currentMon == targetMonitor)
                 continue;
-            }
+
+            // 元モニター work area
             var smi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
-            if (!GetMonitorInfo(srcMon, ref smi)) continue;
+            if (!GetMonitorInfo(currentMon, ref smi)) continue;
             var sWork = smi.rcWork;
 
-            // 状態取得
+            // 状態
             var wp = new WINDOWPLACEMENT { length = Marshal.SizeOf<WINDOWPLACEMENT>() };
             bool hasWp = GetWindowPlacement(hWnd, ref wp);
             int show = hasWp ? wp.showCmd : SW_SHOWNORMAL;
@@ -357,26 +503,23 @@ public sealed partial class MainWindow : Window
             bool wasMin = IsIconic(hWnd);
             bool wasMax = show == SW_SHOWMAXIMIZED;
 
-            // 最小化は復元（位置/サイズを操作できる状態に）
             if (wasMin)
                 ShowWindow(hWnd, SW_RESTORE);
 
-            // 現在の矩形（スナップ状態ならここが「スナップ矩形」）
+            // 現在矩形（スナップはここが効く）
             if (!GetWindowRect(hWnd, out var curRect))
                 continue;
 
-            // 最大化は一旦通常にしてから（curRect が最大化全画面のことがあるため）
+            // 最大化は一旦通常へ（rcNormalPosition を基準に動かす）
             if (wasMax && hasWp)
             {
-                // 通常へ（rcNormalPosition を基準に移動したい）
                 wp.showCmd = SW_SHOWNORMAL;
                 SetWindowPlacement(hWnd, ref wp);
 
-                // 通常化後の矩形を取り直し（できれば rcNormalPosition を優先）
                 curRect = wp.rcNormalPosition;
             }
 
-            // ターゲットへ写像（位置＋サイズを保持）
+            // ターゲットへ写像
             var mapped = MapRectByWorkArea(curRect, sWork, tWork);
 
             bool ok = SetWindowPos(
@@ -386,8 +529,7 @@ public sealed partial class MainWindow : Window
                 mapped.Top,
                 mapped.Right - mapped.Left,
                 mapped.Bottom - mapped.Top,
-                SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSENDCHANGING
-            );
+                SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSENDCHANGING);
 
             if (!ok)
             {
@@ -396,8 +538,7 @@ public sealed partial class MainWindow : Window
                 continue;
             }
 
-            // WINDOWPLACEMENT の rcNormalPosition もターゲット側に更新しておく
-            // （最大化→戻す、などの挙動が安定しやすい）
+            // 最大化復帰（rcNormalPosition も更新しておくと安定）
             if (hasWp)
             {
                 wp.rcNormalPosition = mapped;
@@ -406,20 +547,16 @@ public sealed partial class MainWindow : Window
                 {
                     wp.showCmd = SW_SHOWMAXIMIZED;
                     SetWindowPlacement(hWnd, ref wp);
-
-                    // 念押し（アプリによっては必要）
                     ShowWindow(hWnd, SW_MAXIMIZE);
                 }
                 else
                 {
-                    // 通常/スナップは showCmd は通常のままでOK
                     wp.showCmd = SW_SHOWNORMAL;
                     SetWindowPlacement(hWnd, ref wp);
                 }
             }
             else
             {
-                // 取得できない場合は最大化だけ戻す
                 if (wasMax)
                     ShowWindow(hWnd, SW_MAXIMIZE);
             }
@@ -427,7 +564,7 @@ public sealed partial class MainWindow : Window
     }
 
     // =========================
-    // 起動中ウィンドウ一覧作成
+    // 起動中ウィンドウ一覧作成（従来）
     // =========================
 
     private async Task ReloadRunningWindowsAsync()
@@ -448,7 +585,6 @@ public sealed partial class MainWindow : Window
             if (string.IsNullOrWhiteSpace(title)) return true;
 
             GetWindowThreadProcessId(hWnd, out uint pid);
-
             windows.Add((hWnd, title, pid));
             return true;
         }, IntPtr.Zero);
@@ -511,6 +647,10 @@ public sealed partial class MainWindow : Window
 
         ApplyFilter(FilterBox.Text);
     }
+
+    // =========================
+    // Icon / 判定系（従来）
+    // =========================
 
     [StructLayout(LayoutKind.Sequential)]
     private struct ICONINFO
@@ -654,7 +794,7 @@ public sealed partial class MainWindow : Window
             var bi = new BITMAPINFO();
             bi.bmiHeader.biSize = (uint)Marshal.SizeOf<BITMAPINFOHEADER>();
             bi.bmiHeader.biWidth = width;
-            bi.bmiHeader.biHeight = -height; // top-down
+            bi.bmiHeader.biHeight = -height;
             bi.bmiHeader.biPlanes = 1;
             bi.bmiHeader.biBitCount = 32;
             bi.bmiHeader.biCompression = BI_RGB;
@@ -777,42 +917,6 @@ public sealed partial class MainWindow : Window
         {
             return fallback;
         }
-    }
-    private static RECT MapRectByWorkArea(RECT r, RECT srcWork, RECT dstWork)
-    {
-        int sw = Math.Max(1, srcWork.Right - srcWork.Left);
-        int sh = Math.Max(1, srcWork.Bottom - srcWork.Top);
-
-        int dw = Math.Max(1, dstWork.Right - dstWork.Left);
-        int dh = Math.Max(1, dstWork.Bottom - dstWork.Top);
-
-        // srcWork 内での相対位置 + 相対サイズ
-        double rx = (double)(r.Left - srcWork.Left) / sw;
-        double ry = (double)(r.Top - srcWork.Top) / sh;
-        double rw = (double)(r.Right - r.Left) / sw;
-        double rh = (double)(r.Bottom - r.Top) / sh;
-
-        // dstWork に写像
-        int left = dstWork.Left + (int)Math.Round(rx * dw);
-        int top = dstWork.Top + (int)Math.Round(ry * dh);
-        int w = (int)Math.Round(rw * dw);
-        int h = (int)Math.Round(rh * dh);
-
-        // サイズの下限（0回避）
-        w = Math.Max(50, w);
-        h = Math.Max(50, h);
-
-        // はみ出しクランプ
-        if (left + w > dstWork.Right) left = dstWork.Right - w;
-        if (top + h > dstWork.Bottom) top = dstWork.Bottom - h;
-        if (left < dstWork.Left) left = dstWork.Left;
-        if (top < dstWork.Top) top = dstWork.Top;
-
-        return new RECT { Left = left, Top = top, Right = left + w, Bottom = top + h };
-    }
-    private static IntPtr GetRootWindow(IntPtr hWnd)
-    {
-        return GetAncestor(hWnd, GA_ROOTOWNER);
     }
 }
 
