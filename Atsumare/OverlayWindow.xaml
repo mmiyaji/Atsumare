@@ -47,6 +47,7 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
                     <Button Content="更新" Click="Refresh_Click"/>
                     <Button Content="閉じる" Click="Close_Click"/>
+                    <Button Content="すべて閉じる" Click="CloseAll_Click"/>
                 </StackPanel>
             </StackPanel>
         </Border>

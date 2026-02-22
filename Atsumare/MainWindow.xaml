@@ -16,6 +16,7 @@
     <Grid>
         <StackPanel Spacing="12" Padding="20">
             <Button Content="オーバーレイ表示" Click="ShowOverlay_Click"/>
+            <Button Content="移動テスト" Click="TestMoveChrome_Click"/>
         </StackPanel>
     </Grid>
 </Window>
