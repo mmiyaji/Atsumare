@@ -7,7 +7,6 @@
     mc:Ignorable="d"
     Title="設定">
 
-    <!-- NavigationView をルートにする（これでペイン開閉に合わせて右側が自動で詰まる） -->
     <NavigationView
         x:Name="Nav"
         IsBackButtonVisible="Collapsed"
@@ -17,8 +16,39 @@
         CompactModeThresholdWidth="760"
         ExpandedModeThresholdWidth="980">
 
-        <NavigationView.MenuItems>
+        <!-- WinUI 3: Resources はここに置く -->
+        <NavigationView.Resources>
+            <Style x:Key="CardBorderStyle" TargetType="Border">
+                <Setter Property="CornerRadius" Value="12"/>
+                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="14"/>
+                <Setter Property="Margin" Value="0"/>
+            </Style>
 
+            <Style x:Key="CardTitleStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="16"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
+            </Style>
+
+            <Style x:Key="CardDescStyle" TargetType="TextBlock">
+                <Setter Property="Opacity" Value="0.75"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
+            </Style>
+
+            <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="22"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+            </Style>
+
+            <Style x:Key="SectionSubTitleStyle" TargetType="TextBlock">
+                <Setter Property="Opacity" Value="0.7"/>
+                <Setter Property="TextWrapping" Value="Wrap"/>
+            </Style>
+        </NavigationView.Resources>
+
+        <NavigationView.MenuItems>
             <NavigationViewItem Content="全般" Tag="general">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="Setting"/>
@@ -43,6 +73,7 @@
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
+            <!-- ここが Extension になっていたら Admin にする -->
             <NavigationViewItem Content="拡張機能" Tag="ext">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="Admin"/>
@@ -54,30 +85,89 @@
                     <SymbolIcon Symbol="Help"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
-
         </NavigationView.MenuItems>
 
-        <!-- Right: Content -->
         <NavigationView.Content>
             <ScrollViewer Padding="20" VerticalScrollBarVisibility="Auto">
                 <StackPanel x:Name="RootPanel" Spacing="12">
 
-                    <TextBlock x:Name="PageTitle" Text="全般" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <!-- Header -->
+                    <Grid Margin="0,0,0,10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Row="0" Grid.Column="0" Spacing="2">
+                            <TextBlock x:Name="PageTitle" Text="全般" Style="{StaticResource SectionTitleStyle}"/>
+                            <TextBlock x:Name="PageSubtitle" Text="基本動作を設定します" Style="{StaticResource SectionSubTitleStyle}"/>
+                        </StackPanel>
+
+                        <!-- 右上に置く（ただし安全マージン付き） -->
+                        <TextBox x:Name="SettingsSearchBoxWide"
+                             Grid.Row="0" Grid.Column="1"
+                             MinWidth="260"
+                             MaxWidth="420"
+                             VerticalAlignment="Top"
+                             HorizontalAlignment="Right"
+                             Margin="0,20,0,0"
+                             Padding="10,8"
+                             PlaceholderText="設定を検索"
+                             TextChanged="SettingsSearchBox_TextChanged"/>
+
+                        <!-- 狭いときはここに出す用（後述のVisualStateで切替） -->
+                        <TextBox x:Name="SettingsSearchBoxNarrow"
+                             Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                             Margin="0,10,0,0"
+                             Padding="10,8"
+                             PlaceholderText="設定を検索"
+                             TextChanged="SettingsSearchBox_TextChanged"
+                             Visibility="Collapsed"/>
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="HeaderStates">
+                                <!-- 幅が十分ある（検索は右上） -->
+                                <VisualState x:Name="Wide">
+                                    <VisualState.StateTriggers>
+                                        <AdaptiveTrigger MinWindowWidth="720"/>
+                                    </VisualState.StateTriggers>
+                                    <VisualState.Setters>
+                                        <Setter Target="SettingsSearchBoxWide.Visibility" Value="Visible"/>
+                                        <Setter Target="SettingsSearchBoxNarrow.Visibility" Value="Collapsed"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+
+                                <!-- 幅が狭い（検索は下段に落とす） -->
+                                <VisualState x:Name="Narrow">
+                                    <VisualState.StateTriggers>
+                                        <AdaptiveTrigger MinWindowWidth="0"/>
+                                    </VisualState.StateTriggers>
+                                    <VisualState.Setters>
+                                        <Setter Target="SettingsSearchBoxWide.Visibility" Value="Collapsed"/>
+                                        <Setter Target="SettingsSearchBoxNarrow.Visibility" Value="Visible"/>
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </Grid>
                     <!-- ========== General ========== -->
                     <StackPanel x:Name="PanelGeneral" Spacing="12" Visibility="Visible">
-                        <Border CornerRadius="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="14">
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="起動 トレイ 最小化 startup tray minimize">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="起動時にトレイへ最小化" FontSize="16" FontWeight="SemiBold"/>
-                                <TextBlock Text="起動時にメインウィンドウを表示せず、トレイ常駐で開始します。" Opacity="0.75"/>
+                                <TextBlock Text="起動時にトレイへ最小化" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock Text="起動時にメインウィンドウを表示せず、トレイ常駐で開始します。" Style="{StaticResource CardDescStyle}"/>
                                 <ToggleSwitch x:Name="SwStartMinToTray" Toggled="AnySetting_Toggled"/>
                             </StackPanel>
                         </Border>
 
-                        <Border CornerRadius="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="14">
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="閉じる × トレイ 最小化 close tray minimize">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="×ボタンで終了せずトレイへ最小化" FontSize="16" FontWeight="SemiBold"/>
-                                <TextBlock Text="ウィンドウを閉じる操作を、終了ではなくトレイ最小化として扱います。" Opacity="0.75"/>
+                                <TextBlock Text="×ボタンで終了せずトレイへ最小化" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock Text="ウィンドウを閉じる操作を、終了ではなくトレイ最小化として扱います。" Style="{StaticResource CardDescStyle}"/>
                                 <ToggleSwitch x:Name="SwCloseMinToTray" Toggled="AnySetting_Toggled"/>
                             </StackPanel>
                         </Border>
@@ -85,10 +175,10 @@
 
                     <!-- ========== Move ========== -->
                     <StackPanel x:Name="PanelMove" Spacing="12" Visibility="Collapsed">
-                        <Border CornerRadius="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="14">
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="移動 オーバーレイ overlay move">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="移動時オーバーレイを表示" FontSize="16" FontWeight="SemiBold"/>
-                                <TextBlock Text="ウィンドウ移動中にオーバーレイを表示します。問題切り分け用にOFF推奨の場合があります。" Opacity="0.75"/>
+                                <TextBlock Text="移動時オーバーレイを表示" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock Text="ウィンドウ移動中にオーバーレイを表示します。問題切り分け用にOFF推奨の場合があります。" Style="{StaticResource CardDescStyle}"/>
                                 <ToggleSwitch x:Name="SwShowOverlay" Toggled="AnySetting_Toggled"/>
                             </StackPanel>
                         </Border>
@@ -96,10 +186,10 @@
 
                     <!-- ========== App list ========== -->
                     <StackPanel x:Name="PanelAppList" Spacing="12" Visibility="Collapsed">
-                        <Border CornerRadius="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="14">
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="除外 プロセス app list filter exclude process">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="除外プロセス名" FontSize="16" FontWeight="SemiBold"/>
-                                <TextBlock Text="一覧に出したくないプロセス名をカンマ区切りで指定します。（例: explorer, obs64）" Opacity="0.75"/>
+                                <TextBlock Text="除外プロセス名" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock Text="一覧に出したくないプロセス名をカンマ区切りで指定します。（例: explorer, obs64）" Style="{StaticResource CardDescStyle}"/>
                                 <TextBox x:Name="TbExcludeCsv" TextChanged="AnySetting_TextChanged"/>
                             </StackPanel>
                         </Border>
@@ -107,10 +197,10 @@
 
                     <!-- ========== Log ========== -->
                     <StackPanel x:Name="PanelLog" Spacing="12" Visibility="Collapsed">
-                        <Border CornerRadius="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="14">
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="ログ debug verbose">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="詳細ログを有効化" FontSize="16" FontWeight="SemiBold"/>
-                                <TextBlock Text="診断用のログ出力を増やします。通常はOFFで問題ありません。" Opacity="0.75"/>
+                                <TextBlock Text="詳細ログを有効化" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock Text="診断用のログ出力を増やします。通常はOFFで問題ありません。" Style="{StaticResource CardDescStyle}"/>
                                 <ToggleSwitch x:Name="SwVerboseLog" Toggled="AnySetting_Toggled"/>
                             </StackPanel>
                         </Border>
@@ -118,20 +208,20 @@
 
                     <!-- ========== Ext ========== -->
                     <StackPanel x:Name="PanelExt" Spacing="12" Visibility="Collapsed">
-                        <Border CornerRadius="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="14">
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="拡張 機能 extension">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="拡張機能" FontSize="16" FontWeight="SemiBold"/>
-                                <TextBlock Text="将来拡張（例：移動ルール、特定アプリ連携など）をここに追加します。" Opacity="0.75"/>
+                                <TextBlock Text="拡張機能" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock Text="将来拡張（例：移動ルール、特定アプリ連携など）をここに追加します。" Style="{StaticResource CardDescStyle}"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
 
                     <!-- ========== About ========== -->
                     <StackPanel x:Name="PanelAbout" Spacing="12" Visibility="Collapsed">
-                        <Border CornerRadius="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="14">
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="情報 about version">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Atsumare" FontSize="16" FontWeight="SemiBold"/>
-                                <TextBlock Text="ウィンドウをディスプレイへまとめて移動するツール" Opacity="0.75"/>
+                                <TextBlock Text="Atsumare" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock Text="ウィンドウをディスプレイへまとめて移動するツール" Style="{StaticResource CardDescStyle}"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

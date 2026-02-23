@@ -65,16 +65,18 @@ public sealed partial class SettingsWindow : Window
     {
         if (_isClosing) return;
 
-        if (e.Size.Width < 720)
-        {
-            try
-            {
-                Nav.IsPaneOpen = false;
-            }
-            catch
-            {
-            }
-        }
+        var w = e.Size.Width;
+
+        // Nav の自動クローズ
+        if (w < 720)
+            Nav.IsPaneOpen = false;
+
+        // 検索ボックスのレスポンシブ切替
+        var isNarrow = w < 720;
+
+        SettingsSearchBoxWide.Visibility = isNarrow ? Visibility.Collapsed : Visibility.Visible;
+        SettingsSearchBoxNarrow.Visibility = isNarrow ? Visibility.Visible : Visibility.Collapsed;
+
     }
 
     private void SetWindowSizeSafe(int width, int height)
@@ -88,7 +90,32 @@ public sealed partial class SettingsWindow : Window
         {
         }
     }
+    private void SettingsSearchBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_isClosing) return;
 
+        // Wide/Narrow どちらのTextBoxでも同じ検索が効くようにする
+        var q = ((sender as TextBox)?.Text ?? "").Trim().ToLowerInvariant();
+
+        // 表示中パネルだけを対象にする
+        var panel =
+            PanelGeneral.Visibility == Visibility.Visible ? PanelGeneral :
+            PanelMove.Visibility == Visibility.Visible ? PanelMove :
+            PanelAppList.Visibility == Visibility.Visible ? PanelAppList :
+            PanelLog.Visibility == Visibility.Visible ? PanelLog :
+            PanelExt.Visibility == Visibility.Visible ? PanelExt :
+            PanelAbout;
+
+        foreach (var child in panel.Children)
+        {
+            if (child is not FrameworkElement fe) continue;
+
+            var tag = (fe.Tag as string ?? "").ToLowerInvariant();
+            fe.Visibility = string.IsNullOrEmpty(q) || tag.Contains(q)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+    }
     private async Task LoadAsync()
     {
         _isLoading = true;
@@ -144,6 +171,8 @@ public sealed partial class SettingsWindow : Window
         PanelAbout.Visibility = tag == "about" ? Visibility.Visible : Visibility.Collapsed;
 
         PageTitle.Text = item.Content?.ToString() ?? "設定";
+        SettingsSearchBoxWide.Text = "";
+        SettingsSearchBoxNarrow.Text = "";
     }
 
     private AppWindow? TryGetAppWindow()
