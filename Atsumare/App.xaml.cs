@@ -18,7 +18,7 @@ namespace Atsumare
         private HotkeyHost? _hotkey;
         private KeepAliveWindow? _keepAlive;
         private TrayIconHost? _tray;
-
+        private static SettingsWindow? _settingsWindow;
         private static int _toggleRequested;
         private static int _showRequested; // 0/1 (Interlocked)
         private bool _toggleBusy;         // UIスレッド専用
@@ -331,7 +331,36 @@ namespace Atsumare
                 w.Activate();
             }
         }
+        public static void OpenSettingsWindow()
+        {
+            // UIスレッドで必ず実行
+            var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            if (dq == null)
+            {
+                // まれに取れない場合、MainWindowのDispatcherQueueがあるならそちらへ…なども可能
+                return;
+            }
 
+            dq.TryEnqueue(() =>
+            {
+                try
+                {
+                    if (_settingsWindow != null)
+                    {
+                        _settingsWindow.Activate();
+                        return;
+                    }
+
+                    _settingsWindow = new SettingsWindow();
+                    _settingsWindow.Closed += (_, __) => _settingsWindow = null;
+                    _settingsWindow.Activate();
+                }
+                catch
+                {
+                    _settingsWindow = null;
+                }
+            });
+        }
         private void ExitApplication()
         {
             try

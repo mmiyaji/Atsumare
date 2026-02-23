@@ -30,6 +30,7 @@ namespace Atsumare
         // メニューID
         private const uint IDM_SHOW = 1001;
         private const uint IDM_EXIT = 1002;
+        private const uint IDM_SETTINGS = 1003;
 
         // NotifyIcon callback message
         private const int WM_TRAY = WM_APP + 1;
@@ -213,7 +214,12 @@ namespace Atsumare
                     _onShow();
                     return IntPtr.Zero;
                 }
-                if (id == IDM_EXIT)
+                else if (id == IDM_SETTINGS)
+                {
+                    App.OpenSettingsWindow();
+                    return IntPtr.Zero;
+                }
+                else if (id == IDM_EXIT)
                 {
                     Log("Menu -> Exit");
                     _onExit();
@@ -244,6 +250,7 @@ namespace Atsumare
             try
             {
                 AppendMenu(hMenu, MF_STRING, IDM_SHOW, "表示");
+                AppendMenu(hMenu, MF_STRING, IDM_SETTINGS, "設定...");
                 AppendMenu(hMenu, MF_SEPARATOR, 0, null);
                 AppendMenu(hMenu, MF_STRING, IDM_EXIT, "終了");
 
