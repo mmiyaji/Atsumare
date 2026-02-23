@@ -18,7 +18,9 @@ namespace Atsumare
         private TrayIconHost? _tray;
 
         private static int _toggleRequested;
+        private static int _showRequested; // 0/1 (Interlocked)
         private bool _toggleBusy;         // UIスレッド専用
+        private static int _showBusy; // 0/1
 
         private DispatcherQueueTimer? _pollTimer;
 
@@ -27,6 +29,18 @@ namespace Atsumare
 
         // ★追加：外部通知待受の停止用
         private CancellationTokenSource? _showListenCts;
+        private static long _suppressAutoCloseUntilTick;
+        internal static void SuppressAutoCloseFor(int ms)
+        {
+            var until = Environment.TickCount64 + ms;
+            Interlocked.Exchange(ref _suppressAutoCloseUntilTick, until);
+        }
+
+        internal static bool IsAutoCloseSuppressed()
+        {
+            var until = Interlocked.Read(ref _suppressAutoCloseUntilTick);
+            return Environment.TickCount64 < until;
+        }
 
         public App()
         {
@@ -105,8 +119,12 @@ namespace Atsumare
             WindowHider.HideAndRemoveFromAltTab(_keepAlive);
 
             _tray = new TrayIconHost(
-                onShow: () => ShowFromExternalOrTray(),
-                onExit: () => ExitApplication()
+                onShow: () => Interlocked.Exchange(ref _showRequested, 1),
+                onExit: () =>
+                {
+                    // Exitもトレイスレッドから直接やらない
+                    _uiQueue?.TryEnqueue(() => ExitApplication());
+                }
             );
             _tray.Create();
 
@@ -125,6 +143,13 @@ namespace Atsumare
             _pollTimer.IsRepeating = true;
             _pollTimer.Tick += (_, __) =>
             {
+                // トレイ/多重起動からの「表示要求」：UIスレッドで処理
+                if (Interlocked.Exchange(ref _showRequested, 0) == 1)
+                {
+                    ShowFromExternalOrTray(); // ← Showのみ（前面化/表示）
+                }
+
+                // ホットキー等のトグルは従来通り
                 if (Interlocked.Exchange(ref _toggleRequested, 0) == 1)
                 {
                     RequestToggleOnUI();
@@ -139,18 +164,27 @@ namespace Atsumare
         /// </summary>
         private void ShowFromExternalOrTray()
         {
-            // 「二重起動時はShowがよさそう」方針：
-            // 表示中なら前面化、未表示なら表示
-            if (OpenWindows.Count > 0)
-            {
-                foreach (var w in OpenWindows.ToArray())
-                {
-                    try { w.Activate(); } catch { }
-                }
+            if (Interlocked.Exchange(ref _showBusy, 1) == 1)
                 return;
-            }
 
-            ShowPickerOnAllMonitors();
+            try
+            {
+                SuppressAutoCloseFor(1200);
+                if (OpenWindows.Count > 0)
+                {
+                    foreach (var w in OpenWindows.ToArray())
+                    {
+                        try { w.Activate(); } catch { }
+                    }
+                    return;
+                }
+
+                ShowPickerOnAllMonitors();
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _showBusy, 0);
+            }
         }
 
         internal static void TogglePicker()
@@ -201,6 +235,8 @@ namespace Atsumare
 
         internal static void ShowPickerOnAllMonitors()
         {
+            SuppressAutoCloseFor(1200);
+
             // すでに出ているなら前面化だけ（好みで：一旦閉じて出し直しでもOK）
             if (OpenWindows.Count > 0)
             {

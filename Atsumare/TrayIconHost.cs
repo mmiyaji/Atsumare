@@ -1,8 +1,8 @@
 ﻿using System;
-using System.Runtime.InteropServices;
 using System.Diagnostics;
-using Microsoft.UI.Dispatching;
 using System.IO;
+using System.Runtime.InteropServices;
+
 namespace Atsumare
 {
     internal sealed class TrayIconHost : IDisposable
@@ -10,16 +10,13 @@ namespace Atsumare
         private readonly Action _onShow;
         private readonly Action _onExit;
 
-
         public TrayIconHost(Action onShow, Action onExit)
         {
-            _onShow = onShow;
-            _onExit = onExit;
+            _onShow = onShow ?? throw new ArgumentNullException(nameof(onShow));
+            _onExit = onExit ?? throw new ArgumentNullException(nameof(onExit));
         }
-        private static void Log(string s)
-        {
-            Debug.WriteLine("[Tray] " + s);
-        }
+
+        private static void Log(string s) => Debug.WriteLine("[Tray] " + s);
 
         // コールバック用の隠しウィンドウ
         private IntPtr _hwnd = IntPtr.Zero;
@@ -28,6 +25,7 @@ namespace Atsumare
         // NOTIFYICON
         private uint _taskbarCreatedMsg;
         private bool _added;
+        private IntPtr _hIcon = IntPtr.Zero; // ★LoadImageで作ったアイコンを破棄するため保持
 
         // メニューID
         private const uint IDM_SHOW = 1001;
@@ -36,29 +34,44 @@ namespace Atsumare
         // NotifyIcon callback message
         private const int WM_TRAY = WM_APP + 1;
 
-        // Click messages
+        // Win32 messages
+        private const int WM_APP = 0x8000;
+        private const int WM_COMMAND = 0x0111;
+        private const int WM_DESTROY = 0x0002;
+        private const int WM_NULL = 0x0000;
+
+        // Mouse messages (lParam 下位WORDで来る)
         private const int WM_LBUTTONUP = 0x0202;
         private const int WM_RBUTTONUP = 0x0205;
-        private const int WM_COMMAND = 0x0111;
 
         // Win32 constants
-        private const int WM_APP = 0x8000;
-        private const int WM_DESTROY = 0x0002;
+        private const uint WS_OVERLAPPED = 0x00000000;
+        private const int SW_HIDE = 0;
 
-        private const int SW_SHOWNORMAL = 1;
-        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        private static extern IntPtr LoadImage(
-            IntPtr hInst,
-            string lpszName,
-            uint uType,
-            int cxDesired,
-            int cyDesired,
-            uint fuLoad);
-
+        // Icon load
         private const uint IMAGE_ICON = 1;
         private const uint LR_LOADFROMFILE = 0x00000010;
         private const uint LR_DEFAULTSIZE = 0x00000040;
-        private const uint LR_SHARED = 0x00008000;
+
+        // Notify icon
+        private const uint NIF_MESSAGE = 0x00000001;
+        private const uint NIF_ICON = 0x00000002;
+        private const uint NIF_TIP = 0x00000004;
+
+        private const uint NIM_ADD = 0x00000000;
+        private const uint NIM_MODIFY = 0x00000001;
+        private const uint NIM_DELETE = 0x00000002;
+        private const uint NIM_SETVERSION = 0x00000004;
+
+        private const uint NOTIFYICON_VERSION_4 = 4;
+
+        // Fallback icon
+        private const int IDI_APPLICATION = 32512;
+
+        // Menu
+        private const uint MF_STRING = 0x00000000;
+        private const uint MF_SEPARATOR = 0x00000800;
+        private const uint TPM_RIGHTBUTTON = 0x0002;
 
         public void Create()
         {
@@ -67,8 +80,8 @@ namespace Atsumare
             Log("Create() start");
 
             _wndProc = WindowProc;
-
             _hwnd = CreateHiddenTopLevelWindow(_wndProc);
+
             Log($"CreateHiddenTopLevelWindow hwnd=0x{_hwnd.ToInt64():X} lastErr={Marshal.GetLastWin32Error()}");
 
             if (_hwnd == IntPtr.Zero)
@@ -77,21 +90,23 @@ namespace Atsumare
             _taskbarCreatedMsg = RegisterWindowMessage("TaskbarCreated");
             Log($"TaskbarCreatedMsg={_taskbarCreatedMsg}");
 
-            AddIcon();
+            AddOrReAddIcon();
             Log("Create() end");
         }
-        private void AddIcon()
+
+        private void AddOrReAddIcon()
         {
+            // Explorer再起動などで二重追加しないように、いったん消してから追加
+            try { RemoveIcon(); } catch { }
+
+            DestroyLoadedIconIfAny();
+
             Log("AddIcon() start");
 
-            string iconPath = Path.Combine(
-                AppContext.BaseDirectory,
-                "Assets",
-                "tray.ico");
-
+            string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "tray.ico");
             Log("Loading tray icon from: " + iconPath);
 
-            var hIcon = LoadImage(
+            IntPtr hIcon = LoadImage(
                 IntPtr.Zero,
                 iconPath,
                 IMAGE_ICON,
@@ -102,10 +117,15 @@ namespace Atsumare
             if (hIcon == IntPtr.Zero)
             {
                 Log("LoadImage failed. lastErr=" + Marshal.GetLastWin32Error());
-                // fallback
                 hIcon = LoadIcon(IntPtr.Zero, (IntPtr)IDI_APPLICATION);
+                _hIcon = IntPtr.Zero; // fallbackは共有扱いとして破棄しない
             }
-            Log($"LoadIcon hIcon=0x{hIcon.ToInt64():X} lastErr={Marshal.GetLastWin32Error()}");
+            else
+            {
+                _hIcon = hIcon; // LoadImageで作ったので後でDestroyIcon
+            }
+
+            Log($"Icon handle=0x{hIcon.ToInt64():X} lastErr={Marshal.GetLastWin32Error()}");
 
             var nid = new NOTIFYICONDATA
             {
@@ -115,14 +135,15 @@ namespace Atsumare
                 uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP,
                 uCallbackMessage = WM_TRAY,
                 hIcon = hIcon,
-                szTip = "Atsumare"
+                szTip = "Atsumare",
             };
 
             bool okAdd = Shell_NotifyIcon(NIM_ADD, ref nid);
-            Log($"Shell_NotifyIcon(NIM_ADD) ok={okAdd} lastErr={Marshal.GetLastWin32Error()} cbSize={nid.cbSize} hwnd=0x{nid.hWnd.ToInt64():X} msg=0x{nid.uCallbackMessage:X}");
+            Log($"Shell_NotifyIcon(NIM_ADD) ok={okAdd} lastErr={Marshal.GetLastWin32Error()}");
 
             _added = okAdd;
 
+            // バージョン指定（推奨）
             nid.uVersion = NOTIFYICON_VERSION_4;
             bool okVer = Shell_NotifyIcon(NIM_SETVERSION, ref nid);
             Log($"Shell_NotifyIcon(NIM_SETVERSION) ok={okVer} lastErr={Marshal.GetLastWin32Error()}");
@@ -145,41 +166,39 @@ namespace Atsumare
             _added = false;
         }
 
+        private void DestroyLoadedIconIfAny()
+        {
+            if (_hIcon != IntPtr.Zero)
+            {
+                try { DestroyIcon(_hIcon); } catch { }
+                _hIcon = IntPtr.Zero;
+            }
+        }
+
         private IntPtr WindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
         {
-            if (msg == WM_TRAY)
-            {
-                Log($"WM_TRAY received wParam=0x{wParam.ToInt64():X} lParam=0x{lParam.ToInt64():X}");
-            }
-            else if (_taskbarCreatedMsg != 0 && msg == _taskbarCreatedMsg)
-            {
-                Log("TaskbarCreated received (Explorer restarted?)");
-            }
-            else if (msg == WM_COMMAND)
-            {
-                Log($"WM_COMMAND wParam=0x{wParam.ToInt64():X}");
-            }
-            // Explorer再起動対策：タスクバー作り直し時にアイコン再登録
-            if (_taskbarCreatedMsg != 0 && msg == _taskbarCreatedMsg)
-            {
-                AddIcon();
-                return IntPtr.Zero;
-            }
-
             if (msg == WM_TRAY)
             {
                 int mouseMsg = (int)(lParam.ToInt64() & 0xFFFF);
 
                 if (mouseMsg == WM_LBUTTONUP)
                 {
-                    Log("Left click -> RequestToggle");
-                    _onShow(); // = App.RequestShow()
+                    Log("Left click -> Show");
+                    _onShow();
                 }
                 else if (mouseMsg == WM_RBUTTONUP)
                 {
                     Log("Right click -> Menu");
                     ShowContextMenu();
                 }
+                return IntPtr.Zero;
+            }
+
+            // Explorer再起動対策：タスクバー作り直し時にアイコン再登録
+            if (_taskbarCreatedMsg != 0 && msg == _taskbarCreatedMsg)
+            {
+                Log("TaskbarCreated received (Explorer restarted?) -> ReAddIcon");
+                AddOrReAddIcon();
                 return IntPtr.Zero;
             }
 
@@ -190,8 +209,9 @@ namespace Atsumare
 
                 if (id == IDM_SHOW)
                 {
-                    Log("Menu -> RequestToggle");
+                    Log("Menu -> Show");
                     _onShow();
+                    return IntPtr.Zero;
                 }
                 if (id == IDM_EXIT)
                 {
@@ -204,6 +224,7 @@ namespace Atsumare
             if (msg == WM_DESTROY)
             {
                 RemoveIcon();
+                DestroyLoadedIconIfAny();
                 return IntPtr.Zero;
             }
 
@@ -213,10 +234,10 @@ namespace Atsumare
         private void ShowContextMenu()
         {
             Log("ShowContextMenu() called");
+
             // 重要：メニューを出す前に foreground にする
             SetForegroundWindow(_hwnd);
 
-            // カーソル位置
             GetCursorPos(out var pt);
 
             var hMenu = CreatePopupMenu();
@@ -233,6 +254,8 @@ namespace Atsumare
                     pt.Y,
                     _hwnd,
                     IntPtr.Zero);
+
+                // これを入れないと右クリック後にメニューが即消えたりする系の対策
                 PostMessage(_hwnd, WM_NULL, IntPtr.Zero, IntPtr.Zero);
             }
             finally
@@ -244,6 +267,7 @@ namespace Atsumare
         public void Dispose()
         {
             try { RemoveIcon(); } catch { }
+            DestroyLoadedIconIfAny();
 
             if (_hwnd != IntPtr.Zero)
             {
@@ -274,7 +298,6 @@ namespace Atsumare
             public IntPtr hIconSm;
         }
 
-
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         private struct NOTIFYICONDATA
         {
@@ -303,7 +326,6 @@ namespace Atsumare
             public Guid guidItem;
             public IntPtr hBalloonIcon;
 
-            // 便宜プロパティ
             public uint uVersion { get => uTimeoutOrVersion; set => uTimeoutOrVersion = value; }
         }
 
@@ -313,23 +335,6 @@ namespace Atsumare
             public int X;
             public int Y;
         }
-
-        private const uint NIF_MESSAGE = 0x00000001;
-        private const uint NIF_ICON = 0x00000002;
-        private const uint NIF_TIP = 0x00000004;
-
-        private const uint NIM_ADD = 0x00000000;
-        private const uint NIM_DELETE = 0x00000002;
-        private const uint NIM_SETVERSION = 0x00000004;
-
-        private const uint NOTIFYICON_VERSION_4 = 4;
-
-        private const int IDI_APPLICATION = 32512;
-
-        private const uint MF_STRING = 0x00000000;
-        private const uint MF_SEPARATOR = 0x00000800;
-
-        private const uint TPM_RIGHTBUTTON = 0x0002;
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern ushort RegisterClassEx(ref WNDCLASSEX lpwcx);
@@ -378,7 +383,6 @@ namespace Atsumare
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern bool TrackPopupMenuEx(IntPtr hmenu, uint fuFlags, int x, int y, IntPtr hwnd, IntPtr lptpm);
-        private const int WM_NULL = 0x0000;
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
@@ -386,8 +390,17 @@ namespace Atsumare
         [DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
 
-        private const uint WS_OVERLAPPED = 0x00000000;
-        private const int SW_HIDE = 0;
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern IntPtr LoadImage(
+            IntPtr hInst,
+            string lpszName,
+            uint uType,
+            int cxDesired,
+            int cyDesired,
+            uint fuLoad);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool DestroyIcon(IntPtr hIcon);
 
         [DllImport("user32.dll")]
         private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);

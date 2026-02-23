@@ -13,6 +13,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.Graphics.Imaging;
 using WinRT.Interop;
@@ -61,6 +62,9 @@ public sealed partial class MainWindow : Window
         try { SystemBackdrop = new MicaBackdrop(); }
         catch { SystemBackdrop = null; }
 
+        // ★B: タイトルバー「×」を捕まえて、アプリ終了ではなく「Atsumareウィンドウ群のクローズ」に統一
+        HookCloseToCloseAll();
+
         // Esc で閉じる
         this.Content.PreviewKeyDown += (_, e) =>
         {
@@ -84,6 +88,24 @@ public sealed partial class MainWindow : Window
         this.Closed += (_, __) =>
         {
             try { App.OpenWindows.Remove(this); } catch { }
+        };
+    }
+
+    private void HookCloseToCloseAll()
+    {
+        // AppWindow.Closing はキャンセル可能（Window.Closed は不可）
+        var appWindow = GetAppWindow();
+        appWindow.Closing += (_, e) =>
+        {
+            // CloseAllAtsumareWindows() からの Close は通す
+            if (IsClosing)
+                return;
+
+            // ユーザーの×などの「通常クローズ」はキャンセルして、全ウィンドウを閉じる
+            e.Cancel = true;
+
+            // UIスレッドで安全に
+            DispatcherQueue.TryEnqueue(() => CloseAllAtsumareWindows());
         };
     }
 
@@ -211,6 +233,8 @@ public sealed partial class MainWindow : Window
         // 非アクティブになったら閉じる（ただし自アプリ内のフォーカス移動は除外）
         if (args.WindowActivationState == WindowActivationState.Deactivated)
         {
+            if (App.IsAutoCloseSuppressed())
+                return;
             if (!IsForegroundOurProcess())
             {
                 CloseAllAtsumareWindows();
@@ -249,12 +273,12 @@ public sealed partial class MainWindow : Window
     // =========================
     // Close all Atsumare windows (safe)
     // =========================
-    private static bool _closingWindows; // アプリ全体でガード（MainWindow複数でも安全）
+    private static int _closingWindows; // 0/1 (Interlockedでガード)
 
     private static void CloseAllAtsumareWindows()
     {
-        if (_closingWindows) return;
-        _closingWindows = true;
+        if (Interlocked.Exchange(ref _closingWindows, 1) == 1)
+            return;
 
         try
         {
@@ -273,7 +297,7 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
-            _closingWindows = false;
+            Interlocked.Exchange(ref _closingWindows, 0);
         }
     }
 
