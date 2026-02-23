@@ -50,6 +50,9 @@ public sealed partial class MainWindow : Window
     }
 
     private AppWindow? _cachedAppWindow;
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(uint pid, long startTicks), ImageSource?> _iconCache
+    = new();
+
 
     public MainWindow()
     {
@@ -513,7 +516,7 @@ public sealed partial class MainWindow : Window
 
         foreach (var w in groups)
         {
-            var icon = await GetWindowIconAsync(w.hWnd);
+            var icon = await GetWindowIconAsync(w.hWnd, w.pid);
             var appName = GetAppDisplayName(w.pid, w.title);
 
             AllItems.Add(new AppGroupItem
@@ -531,10 +534,33 @@ public sealed partial class MainWindow : Window
     }
 
     // =========================
+    // Icon cache (minimal)
+    // =========================
+
+    private static long TryGetProcessStartTicks(uint pid)
+    {
+        try
+        {
+            using var p = Process.GetProcessById((int)pid);
+            return p.StartTime.ToUniversalTime().Ticks;
+        }
+        catch
+        {
+            // 取れない場合もある（権限/瞬間終了など）。0にしてPIDのみ扱いに近づける
+            return 0;
+        }
+    }
+    // =========================
     // Icon helpers
     // =========================
-    private async Task<ImageSource?> GetWindowIconAsync(IntPtr hWnd)
+    private async Task<ImageSource?> GetWindowIconAsync(IntPtr hWnd, uint pid)
     {
+        var key = (pid, TryGetProcessStartTicks(pid));
+
+        // 既にあれば即返す（null もキャッシュして無限再試行を防ぐ）
+        if (_iconCache.TryGetValue(key, out var cached))
+            return cached;
+
         IntPtr hIcon = SendMessage(hWnd, WM_GETICON, (IntPtr)ICON_BIG, IntPtr.Zero);
 
         if (hIcon == IntPtr.Zero)
@@ -550,9 +576,14 @@ public sealed partial class MainWindow : Window
             hIcon = GetClassLongPtr(hWnd, GCLP_HICONSM);
 
         if (hIcon == IntPtr.Zero)
+        {
+            _iconCache.TryAdd(key, null);
             return null;
+        }
 
-        return await HiconToImageSourceAsync(hIcon);
+        var icon = await HiconToImageSourceAsync(hIcon);
+        _iconCache.TryAdd(key, icon);
+        return icon;
     }
 
     private static async Task<ImageSource?> HiconToImageSourceAsync(IntPtr hIcon)
