@@ -16,22 +16,28 @@ namespace Atsumare
         private HotkeyHost? _hotkey;
         private KeepAliveWindow? _keepAlive;
         private TrayIconHost? _tray;
-        private static int _showRequested; // 0/1 (Interlockedで使う)
+
         private static int _toggleRequested;
         private bool _toggleBusy;         // UIスレッド専用
-        private bool _togglePending;      // UIスレッド専用（連打の合図）
-        private Microsoft.UI.Dispatching.DispatcherQueueTimer? _pollTimer;
+
+        private DispatcherQueueTimer? _pollTimer;
+
+        // ★追加：UI DispatcherQueue を保持して、外部通知を確実にUIへ投げる
+        private DispatcherQueue? _uiQueue;
+
+        // ★追加：外部通知待受の停止用
+        private CancellationTokenSource? _showListenCts;
 
         public App()
         {
             InitializeComponent();
         }
 
-
         internal static void RequestToggle()
         {
-            System.Threading.Interlocked.Exchange(ref _toggleRequested, 1);
+            Interlocked.Exchange(ref _toggleRequested, 1);
         }
+
         private void RequestToggleOnUI()
         {
             if (_toggleBusy)
@@ -70,8 +76,13 @@ namespace Atsumare
                     _toggleBusy = false;
             }
         }
+
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
+            // ★UIスレッドの DispatcherQueue を保持
+            _uiQueue = DispatcherQueue.GetForCurrentThread();
+            _showListenCts = new CancellationTokenSource();
+
             _single = new SingleInstanceManager(
                 mutexName: @"Global\Atsumare_Mutex_v1",
                 signalName: @"Global\Atsumare_ShowSignal_v1"
@@ -86,18 +97,19 @@ namespace Atsumare
             }
 
             // ① 常駐ホスト化：起動してもUIは出さない
-            // 既存からの「表示要求」を待つ
-            _ = WaitForExternalShowRequestsAsync();
+            // 既存からの「表示要求」を待つ（UIへ確実に投げる）
+            _ = WaitForExternalShowRequestsAsync(_showListenCts.Token);
 
             _keepAlive = new KeepAliveWindow();
             _keepAlive.Activate();
             WindowHider.HideAndRemoveFromAltTab(_keepAlive);
 
             _tray = new TrayIconHost(
-                onShow: () => App.RequestToggle(),
+                onShow: () => ShowFromExternalOrTray(),
                 onExit: () => ExitApplication()
             );
             _tray.Create();
+
             // ③ ホットキー登録（Ctrl+Alt+Space 例）
             _hotkey = new HotkeyHost();
             _hotkey.HotkeyPressed += (_, __) => App.RequestToggle();
@@ -106,20 +118,41 @@ namespace Atsumare
                 virtualKey: HotkeyVKey.Space
             );
 
-            var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+            var dq = DispatcherQueue.GetForCurrentThread();
 
             _pollTimer = dq.CreateTimer();
             _pollTimer.Interval = TimeSpan.FromMilliseconds(200);
             _pollTimer.IsRepeating = true;
             _pollTimer.Tick += (_, __) =>
             {
-                if (System.Threading.Interlocked.Exchange(ref _toggleRequested, 0) == 1)
+                if (Interlocked.Exchange(ref _toggleRequested, 0) == 1)
                 {
                     RequestToggleOnUI();
                 }
             };
             _pollTimer.Start();
         }
+
+        /// <summary>
+        /// トレイ/外部通知からの「表示」を統一入口にする
+        /// 既に表示中なら前面化のみ（閉じない）
+        /// </summary>
+        private void ShowFromExternalOrTray()
+        {
+            // 「二重起動時はShowがよさそう」方針：
+            // 表示中なら前面化、未表示なら表示
+            if (OpenWindows.Count > 0)
+            {
+                foreach (var w in OpenWindows.ToArray())
+                {
+                    try { w.Activate(); } catch { }
+                }
+                return;
+            }
+
+            ShowPickerOnAllMonitors();
+        }
+
         internal static void TogglePicker()
         {
             if (OpenWindows.Count > 0)
@@ -131,6 +164,7 @@ namespace Atsumare
                 ShowPickerOnAllMonitors();
             }
         }
+
         internal static void CloseAllPickerWindows()
         {
             var list = OpenWindows.ToArray();
@@ -145,17 +179,23 @@ namespace Atsumare
                 catch { }
             }
         }
-        private async Task WaitForExternalShowRequestsAsync()
+
+        /// <summary>
+        /// 外部（2個目起動）からのShow要求を待ち、UIスレッドへ確実に投げる
+        /// </summary>
+        private async Task WaitForExternalShowRequestsAsync(CancellationToken ct)
         {
             if (_single == null) return;
 
-            while (true)
+            while (!ct.IsCancellationRequested)
             {
                 await _single.WaitForShowRequestAsync().ConfigureAwait(false);
 
-                // UIスレッドで表示
-                var dq = DispatcherQueue.GetForCurrentThread();
-                _ = dq.TryEnqueue(() => ShowPickerOnAllMonitors());
+                var q = _uiQueue;
+                if (q == null) continue;
+
+                // ★二重起動時は Show（未表示なら表示、表示中なら前面化）
+                _ = q.TryEnqueue(() => ShowFromExternalOrTray());
             }
         }
 
@@ -188,10 +228,19 @@ namespace Atsumare
                 w.Activate();
             }
         }
+
         private void ExitApplication()
         {
             try
             {
+                // ★外部通知待受を止める
+                try { _showListenCts?.Cancel(); } catch { }
+                _showListenCts = null;
+
+                // タイマー停止（任意だけど安全）
+                try { _pollTimer?.Stop(); } catch { }
+                _pollTimer = null;
+
                 // 表示中のAtsumareを閉じる
                 var list = OpenWindows.ToArray();
                 foreach (var w in list)
