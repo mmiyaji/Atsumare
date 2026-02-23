@@ -32,10 +32,19 @@ public sealed partial class SettingsWindow : Window
         this.Closed += SettingsWindow_Closed;
 
         SetWindowSizeSafe(980, 640);
-
+        ApplyResponsiveLayout(this.Bounds.Width);
         _ = LoadAsync();
     }
+    private void ApplyResponsiveLayout(double width)
+    {
+        var isNarrow = width < 720;
 
+        if (isNarrow)
+            Nav.IsPaneOpen = false;
+
+        SettingsSearchBoxWide.Visibility = isNarrow ? Visibility.Collapsed : Visibility.Visible;
+        SettingsSearchBoxNarrow.Visibility = isNarrow ? Visibility.Visible : Visibility.Collapsed;
+    }
     private void SettingsWindow_Closed(object sender, WindowEventArgs args)
     {
         _isClosing = true;
@@ -64,19 +73,7 @@ public sealed partial class SettingsWindow : Window
     private void SettingsWindow_SizeChanged(object sender, WindowSizeChangedEventArgs e)
     {
         if (_isClosing) return;
-
-        var w = e.Size.Width;
-
-        // Nav の自動クローズ
-        if (w < 720)
-            Nav.IsPaneOpen = false;
-
-        // 検索ボックスのレスポンシブ切替
-        var isNarrow = w < 720;
-
-        SettingsSearchBoxWide.Visibility = isNarrow ? Visibility.Collapsed : Visibility.Visible;
-        SettingsSearchBoxNarrow.Visibility = isNarrow ? Visibility.Visible : Visibility.Collapsed;
-
+        ApplyResponsiveLayout(e.Size.Width);
     }
 
     private void SetWindowSizeSafe(int width, int height)
@@ -94,10 +91,17 @@ public sealed partial class SettingsWindow : Window
     {
         if (_isClosing) return;
 
-        // Wide/Narrow どちらのTextBoxでも同じ検索が効くようにする
-        var q = ((sender as TextBox)?.Text ?? "").Trim().ToLowerInvariant();
+        if (sender is TextBox tb)
+        {
+            if (tb == SettingsSearchBoxWide && SettingsSearchBoxNarrow.Text != tb.Text)
+                SettingsSearchBoxNarrow.Text = tb.Text;
 
-        // 表示中パネルだけを対象にする
+            else if (tb == SettingsSearchBoxNarrow && SettingsSearchBoxWide.Text != tb.Text)
+                SettingsSearchBoxWide.Text = tb.Text;
+        }
+        // どちらが sender でも同じ検索語を使う
+        var q = (SettingsSearchBoxWide.Text ?? "").Trim().ToLowerInvariant();
+
         var panel =
             PanelGeneral.Visibility == Visibility.Visible ? PanelGeneral :
             PanelMove.Visibility == Visibility.Visible ? PanelMove :
@@ -173,6 +177,16 @@ public sealed partial class SettingsWindow : Window
         PageTitle.Text = item.Content?.ToString() ?? "設定";
         SettingsSearchBoxWide.Text = "";
         SettingsSearchBoxNarrow.Text = "";
+        PageSubtitle.Text = tag switch
+        {
+            "general" => "基本動作を設定します",
+            "move" => "移動の挙動を設定します",
+            "applist" => "一覧表示のフィルタを設定します",
+            "log" => "診断用のログ設定です",
+            "ext" => "将来の拡張設定です",
+            "about" => "アプリ情報",
+            _ => ""
+        };
     }
 
     private AppWindow? TryGetAppWindow()

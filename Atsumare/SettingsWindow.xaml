@@ -73,7 +73,6 @@
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
-            <!-- ここが Extension になっていたら Admin にする -->
             <NavigationViewItem Content="拡張機能" Tag="ext">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="Admin"/>
