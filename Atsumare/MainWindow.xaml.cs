@@ -52,7 +52,25 @@ public sealed partial class MainWindow : Window
     private AppWindow? _cachedAppWindow;
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<(uint pid, long startTicks), ImageSource?> _iconCache
     = new();
+    private SettingsWindow? _settingsWindow;
 
+    private void OpenSettings()
+    {
+        // ä˘Ç…äJÇ¢ÇƒÇ¢ÇΩÇÁëOñ Ç…
+        if (_settingsWindow != null)
+        {
+            try
+            {
+                _settingsWindow.Activate();
+                return;
+            }
+            catch { _settingsWindow = null; }
+        }
+
+        _settingsWindow = new SettingsWindow();
+        _settingsWindow.Closed += (_, __) => _settingsWindow = null;
+        _settingsWindow.Activate();
+    }
 
     public MainWindow()
     {
@@ -75,6 +93,19 @@ public sealed partial class MainWindow : Window
             {
                 e.Handled = true;
                 CloseAllAtsumareWindows();
+            }
+            // Ctrl + , Ç≈ê›íË
+            if (e.Key == Windows.System.VirtualKey.P)
+            {
+                var ctrl = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
+                            & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down;
+
+                if (ctrl)
+                {
+                    e.Handled = true;
+                    OpenSettings();
+                    return;
+                }
             }
         };
 

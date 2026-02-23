@@ -1,0 +1,144 @@
+<Window
+    x:Class="Atsumare.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="設定">
+
+    <!-- NavigationView をルートにする（これでペイン開閉に合わせて右側が自動で詰まる） -->
+    <NavigationView
+        x:Name="Nav"
+        IsBackButtonVisible="Collapsed"
+        IsSettingsVisible="False"
+        PaneDisplayMode="Left"
+        SelectionChanged="Nav_SelectionChanged"
+        CompactModeThresholdWidth="760"
+        ExpandedModeThresholdWidth="980">
+
+        <NavigationView.MenuItems>
+
+            <NavigationViewItem Content="全般" Tag="general">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Setting"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+            <NavigationViewItem Content="移動" Tag="move">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Forward"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+            <NavigationViewItem Content="アプリ一覧" Tag="applist">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="AllApps"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+            <NavigationViewItem Content="ログ" Tag="log">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Library"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+            <NavigationViewItem Content="拡張機能" Tag="ext">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Admin"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+            <NavigationViewItem Content="情報" Tag="about">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Help"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+
+        </NavigationView.MenuItems>
+
+        <!-- Right: Content -->
+        <NavigationView.Content>
+            <ScrollViewer Padding="20" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="RootPanel" Spacing="12">
+
+                    <TextBlock x:Name="PageTitle" Text="全般" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+                    <!-- ========== General ========== -->
+                    <StackPanel x:Name="PanelGeneral" Spacing="12" Visibility="Visible">
+                        <Border CornerRadius="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="14">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="起動時にトレイへ最小化" FontSize="16" FontWeight="SemiBold"/>
+                                <TextBlock Text="起動時にメインウィンドウを表示せず、トレイ常駐で開始します。" Opacity="0.75"/>
+                                <ToggleSwitch x:Name="SwStartMinToTray" Toggled="AnySetting_Toggled"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border CornerRadius="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="14">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="×ボタンで終了せずトレイへ最小化" FontSize="16" FontWeight="SemiBold"/>
+                                <TextBlock Text="ウィンドウを閉じる操作を、終了ではなくトレイ最小化として扱います。" Opacity="0.75"/>
+                                <ToggleSwitch x:Name="SwCloseMinToTray" Toggled="AnySetting_Toggled"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========== Move ========== -->
+                    <StackPanel x:Name="PanelMove" Spacing="12" Visibility="Collapsed">
+                        <Border CornerRadius="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="14">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="移動時オーバーレイを表示" FontSize="16" FontWeight="SemiBold"/>
+                                <TextBlock Text="ウィンドウ移動中にオーバーレイを表示します。問題切り分け用にOFF推奨の場合があります。" Opacity="0.75"/>
+                                <ToggleSwitch x:Name="SwShowOverlay" Toggled="AnySetting_Toggled"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========== App list ========== -->
+                    <StackPanel x:Name="PanelAppList" Spacing="12" Visibility="Collapsed">
+                        <Border CornerRadius="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="14">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="除外プロセス名" FontSize="16" FontWeight="SemiBold"/>
+                                <TextBlock Text="一覧に出したくないプロセス名をカンマ区切りで指定します。（例: explorer, obs64）" Opacity="0.75"/>
+                                <TextBox x:Name="TbExcludeCsv" TextChanged="AnySetting_TextChanged"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========== Log ========== -->
+                    <StackPanel x:Name="PanelLog" Spacing="12" Visibility="Collapsed">
+                        <Border CornerRadius="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="14">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="詳細ログを有効化" FontSize="16" FontWeight="SemiBold"/>
+                                <TextBlock Text="診断用のログ出力を増やします。通常はOFFで問題ありません。" Opacity="0.75"/>
+                                <ToggleSwitch x:Name="SwVerboseLog" Toggled="AnySetting_Toggled"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========== Ext ========== -->
+                    <StackPanel x:Name="PanelExt" Spacing="12" Visibility="Collapsed">
+                        <Border CornerRadius="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="14">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="拡張機能" FontSize="16" FontWeight="SemiBold"/>
+                                <TextBlock Text="将来拡張（例：移動ルール、特定アプリ連携など）をここに追加します。" Opacity="0.75"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ========== About ========== -->
+                    <StackPanel x:Name="PanelAbout" Spacing="12" Visibility="Collapsed">
+                        <Border CornerRadius="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" Padding="14">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Atsumare" FontSize="16" FontWeight="SemiBold"/>
+                                <TextBlock Text="ウィンドウをディスプレイへまとめて移動するツール" Opacity="0.75"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <Border Height="10" Opacity="0"/>
+                </StackPanel>
+            </ScrollViewer>
+        </NavigationView.Content>
+    </NavigationView>
+</Window>
