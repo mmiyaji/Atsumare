@@ -2,6 +2,8 @@
 using Microsoft.UI.Xaml;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -29,18 +31,9 @@ namespace Atsumare
 
         // ★追加：外部通知待受の停止用
         private CancellationTokenSource? _showListenCts;
+        private static readonly object _logLock = new();
         private static long _suppressAutoCloseUntilTick;
-        internal static void SuppressAutoCloseFor(int ms)
-        {
-            var until = Environment.TickCount64 + ms;
-            Interlocked.Exchange(ref _suppressAutoCloseUntilTick, until);
-        }
-
-        internal static bool IsAutoCloseSuppressed()
-        {
-            var until = Interlocked.Read(ref _suppressAutoCloseUntilTick);
-            return Environment.TickCount64 < until;
-        }
+        private static int _fatalHandling; // 再入防止
 
         public App()
         {
@@ -96,6 +89,8 @@ namespace Atsumare
             // ★UIスレッドの DispatcherQueue を保持
             _uiQueue = DispatcherQueue.GetForCurrentThread();
             _showListenCts = new CancellationTokenSource();
+
+            RegisterGlobalExceptionHandlers();
 
             _single = new SingleInstanceManager(
                 mutexName: @"Global\Atsumare_Mutex_v1",
@@ -156,6 +151,7 @@ namespace Atsumare
                 }
             };
             _pollTimer.Start();
+            LogLine("[BOOT] OnLaunched completed");
         }
 
         /// <summary>
@@ -213,7 +209,78 @@ namespace Atsumare
                 catch { }
             }
         }
+        private void RegisterGlobalExceptionHandlers()
+        {
+            // UIスレッドで未処理になった例外
+            this.UnhandledException += (_, e) =>
+            {
+                try
+                {
+                    LogException("App.UnhandledException", e.Exception);
+                }
+                catch { }
 
+                // ここで true にすると落ちないが、状態不整合のまま走る危険もある
+                // 常駐ツールなら「ログを書いた上で安全に終了」が基本
+                e.Handled = true;
+                TriggerFatalShutdown("App.UnhandledException");
+            };
+
+            // バックグラウンドTask等の未観測例外
+            TaskScheduler.UnobservedTaskException += (_, e) =>
+            {
+                try
+                {
+                    LogException("TaskScheduler.UnobservedTaskException", e.Exception);
+                }
+                catch { }
+
+                e.SetObserved();
+                TriggerFatalShutdown("TaskScheduler.UnobservedTaskException");
+            };
+
+            // それ以外（最終防衛線）
+            AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            {
+                try
+                {
+                    if (e.ExceptionObject is Exception ex)
+                        LogException("AppDomain.UnhandledException", ex);
+                    else
+                        LogLine("AppDomain.UnhandledException: non-Exception object");
+                }
+                catch { }
+
+                // ここはもうUIスレッド保証がないので、できるだけ即終了
+                Environment.Exit(unchecked((int)0xDEAD));
+            };
+        }
+
+        private void TriggerFatalShutdown(string reason)
+        {
+            if (Interlocked.Exchange(ref _fatalHandling, 1) == 1)
+                return;
+
+            try
+            {
+                LogLine($"[FATAL] TriggerFatalShutdown reason={reason}");
+            }
+            catch { }
+
+            // UIスレッドに寄せて後始末
+            try
+            {
+                _uiQueue?.TryEnqueue(() =>
+                {
+                    try { ExitApplication(); }
+                    catch { Exit(); }
+                });
+            }
+            catch
+            {
+                try { Exit(); } catch { }
+            }
+        }
         /// <summary>
         /// 外部（2個目起動）からのShow要求を待ち、UIスレッドへ確実に投げる
         /// </summary>
@@ -302,5 +369,49 @@ namespace Atsumare
             // プロセス終了
             Exit();
         }
+        internal static void SuppressAutoCloseFor(int ms)
+        {
+            var until = Environment.TickCount64 + ms;
+            Interlocked.Exchange(ref _suppressAutoCloseUntilTick, until);
+        }
+
+        internal static bool IsAutoCloseSuppressed()
+        {
+            var until = Interlocked.Read(ref _suppressAutoCloseUntilTick);
+            return Environment.TickCount64 < until;
+        }
+
+        private static string LogPath =>
+            Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Atsumare",
+                "logs",
+                $"app-{DateTime.Now:yyyyMMdd}.log");
+
+        private static void LogLine(string message)
+        {
+            try
+            {
+                var line = $"{DateTime.Now:HH:mm:ss.fff}\t{message}{Environment.NewLine}";
+                lock (_logLock)
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(LogPath)!);
+                    File.AppendAllText(LogPath, line, Encoding.UTF8);
+                }
+            }
+            catch { }
+        }
+
+        private static void LogException(string where, Exception ex)
+        {
+            LogLine($"[EX] {where}: {ex.GetType().FullName}: {ex.Message}");
+            LogLine(ex.StackTrace ?? "");
+            if (ex.InnerException != null)
+            {
+                LogLine($"[EX] Inner: {ex.InnerException.GetType().FullName}: {ex.InnerException.Message}");
+                LogLine(ex.InnerException.StackTrace ?? "");
+            }
+        }
+
     }
 }
