@@ -37,11 +37,9 @@ public static class SettingsStore
             }
 
             var json = await File.ReadAllTextAsync(path);
-            var loaded = JsonSerializer.Deserialize<AtsumareSettings>(json, new JsonSerializerOptions
-            {
-                ReadCommentHandling = JsonCommentHandling.Skip,
-                AllowTrailingCommas = true,
-            });
+            var loaded = JsonSerializer.Deserialize(
+                json,
+                SettingsJsonContext.Default.AtsumareSettings);
 
             Current = loaded ?? new AtsumareSettings();
             return Current;
@@ -63,10 +61,10 @@ public static class SettingsStore
         try
         {
             var path = GetSettingsPath();
-            var json = JsonSerializer.Serialize(Current, new JsonSerializerOptions
-            {
-                WriteIndented = true,
-            });
+            var json = JsonSerializer.Serialize(
+                Current,
+                SettingsJsonContext.Default.AtsumareSettings);
+
             await File.WriteAllTextAsync(path, json);
         }
         finally
