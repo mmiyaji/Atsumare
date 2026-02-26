@@ -170,6 +170,25 @@
                                 <ToggleSwitch x:Name="SwCloseMinToTray" Toggled="AnySetting_Toggled"/>
                             </StackPanel>
                         </Border>
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="ホットキー hotkey shortcut">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="ホットキー" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock Text="ピッカー表示/非表示のショートカットを設定します。" Style="{StaticResource CardDescStyle}"/>
+
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <CheckBox x:Name="CbModCtrl" Content="Ctrl" Checked="Hotkey_Changed" Unchecked="Hotkey_Changed"/>
+                                    <CheckBox x:Name="CbModAlt"  Content="Alt"  Checked="Hotkey_Changed" Unchecked="Hotkey_Changed"/>
+                                    <CheckBox x:Name="CbModShift" Content="Shift" Checked="Hotkey_Changed" Unchecked="Hotkey_Changed"/>
+                                    <!--<CheckBox x:Name="CbModWin"  Content="Win"  Checked="Hotkey_Changed" Unchecked="Hotkey_Changed"/> -->
+                                </StackPanel>
+
+                                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                    <TextBlock Text="キー" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="CbHotkeyKey" Width="220" SelectionChanged="Hotkey_Changed"/>
+                                    <TextBlock x:Name="TbHotkeyPreview" VerticalAlignment="Center" Opacity="0.8"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
 
                     <!-- ========== Move ========== -->

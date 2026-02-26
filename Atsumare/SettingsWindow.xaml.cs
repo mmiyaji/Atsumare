@@ -9,7 +9,7 @@ using WinRT.Interop;
 using System.Diagnostics;
 using System.Linq;
 using System.Collections.Generic;
-
+using System.Collections.ObjectModel;
 namespace Atsumare;
 
 public sealed partial class SettingsWindow : Window
@@ -18,7 +18,14 @@ public sealed partial class SettingsWindow : Window
     private bool _isClosing;
 
     private AppWindow? _cachedAppWindow;
+    private readonly ObservableCollection<HotkeyKeyItem> _hotkeyKeys = new();
 
+    private sealed class HotkeyKeyItem
+    {
+        public string Label { get; set; } = "";
+        public int Vk { get; set; }
+        public override string ToString() => Label;
+    }
     public SettingsWindow()
     {
         InitializeComponent();
@@ -34,9 +41,34 @@ public sealed partial class SettingsWindow : Window
         this.SizeChanged += SettingsWindow_SizeChanged;
         this.Closed += SettingsWindow_Closed;
 
+        InitHotkeyKeyCandidates();
+        CbHotkeyKey.ItemsSource = _hotkeyKeys;
+
         SetWindowSizeSafe(980, 640);
         ApplyResponsiveLayout(this.Bounds.Width);
         _ = LoadAsync();
+    }
+    private void InitHotkeyKeyCandidates()
+    {
+        _hotkeyKeys.Clear();
+
+        // よく使うもの
+        _hotkeyKeys.Add(new HotkeyKeyItem { Label = "Space", Vk = 0x20 });
+        _hotkeyKeys.Add(new HotkeyKeyItem { Label = "Enter", Vk = 0x0D });
+        _hotkeyKeys.Add(new HotkeyKeyItem { Label = "Tab", Vk = 0x09 });
+        _hotkeyKeys.Add(new HotkeyKeyItem { Label = "Esc", Vk = 0x1B });
+
+        // F1-F12
+        for (int i = 1; i <= 12; i++)
+            _hotkeyKeys.Add(new HotkeyKeyItem { Label = $"F{i}", Vk = 0x70 + (i - 1) });
+
+        // A-Z
+        for (int c = 'A'; c <= 'Z'; c++)
+            _hotkeyKeys.Add(new HotkeyKeyItem { Label = ((char)c).ToString(), Vk = c });
+
+        // 0-9
+        for (int c = '0'; c <= '9'; c++)
+            _hotkeyKeys.Add(new HotkeyKeyItem { Label = ((char)c).ToString(), Vk = c });
     }
     private void ApplyResponsiveLayout(double width)
     {
@@ -142,13 +174,65 @@ public sealed partial class SettingsWindow : Window
             SwShowOverlay.IsOn = s.ShowMoveOverlay;
             TbExcludeCsv.Text = s.ExcludeProcessNamesCsv ?? "";
             SwVerboseLog.IsOn = s.EnableVerboseLog;
+            ApplyHotkeyToUI(s);
+            UpdateHotkeyPreview();
         }
         finally
         {
             _isLoading = false;
         }
     }
+    private void ApplyHotkeyToUI(AtsumareSettings s)
+    {
+        // MOD_* を int で保持（Win32と同じ）
+        CbModAlt.IsChecked = (s.HotkeyModifiers & 0x0001) != 0;
+        CbModCtrl.IsChecked = (s.HotkeyModifiers & 0x0002) != 0;
+        CbModShift.IsChecked = (s.HotkeyModifiers & 0x0004) != 0;
+        CbModWin.IsChecked = (s.HotkeyModifiers & 0x0008) != 0;
 
+        // VK を選択
+        var item = _hotkeyKeys.FirstOrDefault(x => x.Vk == s.HotkeyVirtualKey);
+        if (item != null)
+            CbHotkeyKey.SelectedItem = item;
+        else
+            CbHotkeyKey.SelectedItem = _hotkeyKeys.FirstOrDefault(x => x.Vk == 0x20);
+    }
+
+    private void UpdateHotkeyPreview()
+    {
+        var parts = new List<string>();
+        if (CbModCtrl.IsChecked == true) parts.Add("Ctrl");
+        if (CbModAlt.IsChecked == true) parts.Add("Alt");
+        if (CbModShift.IsChecked == true) parts.Add("Shift");
+        if (CbModWin.IsChecked == true) parts.Add("Win");
+
+        var key = (CbHotkeyKey.SelectedItem as HotkeyKeyItem)?.Label ?? "";
+        if (!string.IsNullOrEmpty(key)) parts.Add(key);
+
+        TbHotkeyPreview.Text = parts.Count > 0 ? string.Join(" + ", parts) : "";
+    }
+    private async void Hotkey_Changed(object sender, object e)
+    {
+        if (_isLoading || _isClosing) return;
+
+        var mods = 0;
+        if (CbModAlt.IsChecked == true) mods |= 0x0001;
+        if (CbModCtrl.IsChecked == true) mods |= 0x0002;
+        if (CbModShift.IsChecked == true) mods |= 0x0004;
+        if (CbModWin.IsChecked == true) mods |= 0x0008;
+
+        var vk = (CbHotkeyKey.SelectedItem as HotkeyKeyItem)?.Vk ?? 0x20;
+
+        // 修飾キーなしは事故りやすいので強制で Ctrl+Alt に戻す（好みで変更可）
+        if (mods == 0) mods = 0x0002 | 0x0001;
+
+        var s = SettingsStore.Current;
+        s.HotkeyModifiers = mods;
+        s.HotkeyVirtualKey = vk;
+
+        UpdateHotkeyPreview();
+        await SettingsStore.SaveAsync();
+    }
     private async void AnySetting_Toggled(object sender, RoutedEventArgs e)
     {
         if (_isLoading || _isClosing) return;

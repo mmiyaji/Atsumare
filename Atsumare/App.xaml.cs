@@ -86,34 +86,42 @@ namespace Atsumare
 
         protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
-            // ★UIスレッドの DispatcherQueue を保持
             _uiQueue = DispatcherQueue.GetForCurrentThread();
             _showListenCts = new CancellationTokenSource();
 
             RegisterGlobalExceptionHandlers();
-
-            // ★追加：起動直後に設定をロード（ここが本命）
-            try
-            {
-                await SettingsStore.LoadAsync();
-            }
-            catch (Exception ex)
-            {
-                // 落とさない（ログは任意）
-                 LogException("AtsumareSettings.LoadAsync", ex);
-            }
 
             _single = new SingleInstanceManager(
                 mutexName: @"Global\Atsumare_Mutex_v1",
                 signalName: @"Global\Atsumare_ShowSignal_v1"
             );
 
+            // 2個目は通知して終了（ここではロード等しない）
             if (!_single.TryEnterAsFirstInstance())
             {
                 _single.SignalShowRequest();
                 Exit();
                 return;
             }
+
+            // ★First instance になってから設定ロード
+            try
+            {
+                await SettingsStore.LoadAsync();
+            }
+            catch (Exception ex)
+            {
+                LogException("SettingsStore.LoadAsync", ex);
+            }
+
+            // ★設定からホットキー登録（固定値はやめる）
+            ApplyHotkeyFromSettings();
+
+            // ★設定変更で再登録（任意だが推奨）
+            SettingsStore.SettingsChanged += (_, __) =>
+            {
+                _uiQueue?.TryEnqueue(() => ApplyHotkeyFromSettings());
+            };
 
             _ = WaitForExternalShowRequestsAsync(_showListenCts.Token);
 
@@ -127,15 +135,7 @@ namespace Atsumare
             );
             _tray.Create();
 
-            _hotkey = new HotkeyHost();
-            _hotkey.HotkeyPressed += (_, __) => App.RequestToggle();
-            _hotkey.StartRegisterHotkey(
-                modifiers: HotkeyModifiers.Control | HotkeyModifiers.Alt,
-                virtualKey: HotkeyVKey.Space
-            );
-
             var dq = DispatcherQueue.GetForCurrentThread();
-
             _pollTimer = dq.CreateTimer();
             _pollTimer.Interval = TimeSpan.FromMilliseconds(200);
             _pollTimer.IsRepeating = true;
@@ -149,7 +149,48 @@ namespace Atsumare
             };
             _pollTimer.Start();
         }
+        private void ApplyHotkeyFromSettings()
+        {
+            var s = SettingsStore.Current;
 
+            // Win32 MOD_* / VK_* を int で保存している想定
+            var mods = s.HotkeyModifiers;
+            var vk = s.HotkeyVirtualKey;
+
+            // フォールバック
+            if (mods == 0) mods = 0x0002 | 0x0001; // Ctrl+Alt
+            if (vk <= 0) vk = 0x20;               // Space
+
+            // ★ Win + Space は OS 予約のことが多いので弾く（まず最低限）
+            if ((mods & 0x0008) != 0 && vk == 0x20)
+            {
+                LogLine("[HOTKEY] Win+Space is reserved. Fallback to Ctrl+Alt+Space.");
+                mods = 0x0002 | 0x0001; // Ctrl+Alt
+                vk = 0x20;              // Space
+            }
+
+            try
+            {
+                // ★新しいホットキーを先に作って登録（成功したら差し替える）
+                var newHotkey = new HotkeyHost();
+                newHotkey.HotkeyPressed += (_, __) => App.RequestToggle();
+                newHotkey.StartRegisterHotkey(
+                    modifiers: (HotkeyModifiers)mods,
+                    virtualKey: (HotkeyVKey)vk
+                );
+
+                // 成功したので旧を破棄して差し替え
+                _hotkey?.Dispose();
+                _hotkey = newHotkey;
+
+                LogLine($"[HOTKEY] Registered mods=0x{mods:X} vk=0x{vk:X}");
+            }
+            catch (Exception ex)
+            {
+                // ★ここで落とさない（旧ホットキーは維持される）
+                LogException($"[HOTKEY] Register failed mods=0x{mods:X} vk=0x{vk:X}", ex);
+            }
+        }
         /// <summary>
         /// トレイ/外部通知からの「表示」を統一入口にする
         /// 既に表示中なら前面化のみ（閉じない）
@@ -178,6 +219,7 @@ namespace Atsumare
                 Interlocked.Exchange(ref _showBusy, 0);
             }
         }
+
 
         internal static void TogglePicker()
         {
