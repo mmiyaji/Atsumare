@@ -84,7 +84,7 @@ namespace Atsumare
             }
         }
 
-        protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
+        protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             // ★UIスレッドの DispatcherQueue を保持
             _uiQueue = DispatcherQueue.GetForCurrentThread();
@@ -92,21 +92,29 @@ namespace Atsumare
 
             RegisterGlobalExceptionHandlers();
 
+            // ★追加：起動直後に設定をロード（ここが本命）
+            try
+            {
+                await SettingsStore.LoadAsync();
+            }
+            catch (Exception ex)
+            {
+                // 落とさない（ログは任意）
+                 LogException("AtsumareSettings.LoadAsync", ex);
+            }
+
             _single = new SingleInstanceManager(
                 mutexName: @"Global\Atsumare_Mutex_v1",
                 signalName: @"Global\Atsumare_ShowSignal_v1"
             );
 
-            // ② 多重起動防止：2個目は既存へ「表示要求」して終了
             if (!_single.TryEnterAsFirstInstance())
             {
                 _single.SignalShowRequest();
-                Exit(); // ← 常駐済みなので自分は終了
+                Exit();
                 return;
             }
 
-            // ① 常駐ホスト化：起動してもUIは出さない
-            // 既存からの「表示要求」を待つ（UIへ確実に投げる）
             _ = WaitForExternalShowRequestsAsync(_showListenCts.Token);
 
             _keepAlive = new KeepAliveWindow();
@@ -115,15 +123,10 @@ namespace Atsumare
 
             _tray = new TrayIconHost(
                 onShow: () => Interlocked.Exchange(ref _showRequested, 1),
-                onExit: () =>
-                {
-                    // Exitもトレイスレッドから直接やらない
-                    _uiQueue?.TryEnqueue(() => ExitApplication());
-                }
+                onExit: () => { _uiQueue?.TryEnqueue(() => ExitApplication()); }
             );
             _tray.Create();
 
-            // ③ ホットキー登録（Ctrl+Alt+Space 例）
             _hotkey = new HotkeyHost();
             _hotkey.HotkeyPressed += (_, __) => App.RequestToggle();
             _hotkey.StartRegisterHotkey(
@@ -138,20 +141,13 @@ namespace Atsumare
             _pollTimer.IsRepeating = true;
             _pollTimer.Tick += (_, __) =>
             {
-                // トレイ/多重起動からの「表示要求」：UIスレッドで処理
                 if (Interlocked.Exchange(ref _showRequested, 0) == 1)
-                {
-                    ShowFromExternalOrTray(); // ← Showのみ（前面化/表示）
-                }
+                    ShowFromExternalOrTray();
 
-                // ホットキー等のトグルは従来通り
                 if (Interlocked.Exchange(ref _toggleRequested, 0) == 1)
-                {
                     RequestToggleOnUI();
-                }
             };
             _pollTimer.Start();
-            LogLine("[BOOT] OnLaunched completed");
         }
 
         /// <summary>

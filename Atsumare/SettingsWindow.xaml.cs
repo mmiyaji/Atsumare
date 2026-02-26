@@ -6,6 +6,9 @@ using Microsoft.UI.Xaml.Media;
 using System;
 using System.Threading.Tasks;
 using WinRT.Interop;
+using System.Diagnostics;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace Atsumare;
 
@@ -127,6 +130,13 @@ public sealed partial class SettingsWindow : Window
         {
             var s = await SettingsStore.LoadAsync();
 
+            var ensured = EnsureSelfInExcludeCsv(s.ExcludeProcessNamesCsv);
+            if (!string.Equals(s.ExcludeProcessNamesCsv ?? "", ensured, StringComparison.Ordinal))
+            {
+                s.ExcludeProcessNamesCsv = ensured;
+                await SettingsStore.SaveAsync();
+            }
+
             SwStartMinToTray.IsOn = s.StartMinimizedToTray;
             SwCloseMinToTray.IsOn = s.CloseButtonMinimizesToTray;
             SwShowOverlay.IsOn = s.ShowMoveOverlay;
@@ -156,7 +166,22 @@ public sealed partial class SettingsWindow : Window
     {
         if (_isLoading || _isClosing) return;
 
-        SettingsStore.Current.ExcludeProcessNamesCsv = TbExcludeCsv.Text ?? "";
+        var normalized = NormalizeExcludeCsv(TbExcludeCsv.Text);
+
+        // 空になったら安全側で自分自身を戻す（任意。不要なら削除OK）
+        if (string.IsNullOrWhiteSpace(normalized))
+            normalized = Process.GetCurrentProcess().ProcessName;
+
+        // TextBox へ戻す（カーソルが飛ぶのが嫌ならこのブロックは省略OK）
+        if (TbExcludeCsv.Text != normalized)
+        {
+            _isLoading = true;
+            TbExcludeCsv.Text = normalized;
+            TbExcludeCsv.SelectionStart = TbExcludeCsv.Text.Length;
+            _isLoading = false;
+        }
+
+        SettingsStore.Current.ExcludeProcessNamesCsv = normalized;
         await SettingsStore.SaveAsync();
     }
 
@@ -243,5 +268,25 @@ public sealed partial class SettingsWindow : Window
         {
             // ここが落ちやすいので握る
         }
+    }
+    private static string NormalizeExcludeCsv(string? csv)
+    {
+        var parts = (csv ?? "")
+            .Split(new[] { ',', '\n', '\r', ';' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim())
+            .Where(x => x.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return string.Join(", ", parts);
+    }
+
+    private static string EnsureSelfInExcludeCsv(string? csv)
+    {
+        var normalized = NormalizeExcludeCsv(csv);
+        if (!string.IsNullOrWhiteSpace(normalized)) return normalized;
+
+        // Atsumare.exe -> "Atsumare"
+        return Process.GetCurrentProcess().ProcessName;
     }
 }

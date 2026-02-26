@@ -429,6 +429,11 @@ public sealed partial class MainWindow : Window
     {
         var hwnds = new List<IntPtr>();
 
+        var exclude = BuildExcludeSet();
+
+        if (ShouldExcludeByProcessName(pid, exclude))
+            return hwnds;
+
         EnumWindows((hWnd, _) =>
         {
             if (hWnd == IntPtr.Zero) return true;
@@ -484,6 +489,7 @@ public sealed partial class MainWindow : Window
     private async Task ReloadRunningWindowsAsync()
     {
         var windows = new List<(IntPtr hWnd, string title, uint pid)>();
+        var exclude = BuildExcludeSet();
 
         EnumWindows((hWnd, lParam) =>
         {
@@ -499,6 +505,9 @@ public sealed partial class MainWindow : Window
             if (string.IsNullOrWhiteSpace(title)) return true;
 
             GetWindowThreadProcessId(hWnd, out uint pid);
+            if (ShouldExcludeByProcessName(pid, exclude))
+                return true;
+
             windows.Add((hWnd, title, pid));
             return true;
         }, IntPtr.Zero);
@@ -774,6 +783,29 @@ public sealed partial class MainWindow : Window
 
         GetWindowThreadProcessId(fg, out uint fgPid);
         return fgPid == GetCurrentProcessId();
+    }
+    static HashSet<string> BuildExcludeSet()
+    {
+        var csv = SettingsStore.Current.ExcludeProcessNamesCsv ?? "";
+        return csv
+            .Split(new[] { ',', '\n', '\r', ';' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim())
+            .Where(x => x.Length > 0)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    static bool ShouldExcludeByProcessName(uint pid, HashSet<string> exclude)
+    {
+        if (exclude.Count == 0) return false;
+        try
+        {
+            var name = Process.GetProcessById((int)pid).ProcessName; // "chrome" “™
+            return exclude.Contains(name);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     // =========================
