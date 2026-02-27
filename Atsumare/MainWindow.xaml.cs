@@ -31,10 +31,10 @@ public sealed partial class MainWindow : Window
     private bool _focusedOnce;
     private bool _topMostOnce;
 
-    // このウィンドウが閉じ処理に入ったら true（二重 Close 防止用）
+    // ���̃E�B���h�E���������ɓ������� true�i��d Close �h�~�p�j
     public bool IsClosing { get; internal set; }
 
-    // この MainWindow の担当モニター（クリック時の寄せ先）
+    // ���� MainWindow �̒S�����j�^�[�i�N���b�N���̊񂹐�j
     private IntPtr _targetMonitorForThisWindow = IntPtr.Zero;
 
     private double _tileWidth = 180;
@@ -56,7 +56,7 @@ public sealed partial class MainWindow : Window
 
     private void OpenSettings()
     {
-        // 既に開いていたら前面に
+        // ���ɊJ���Ă�����O�ʂ�
         if (_settingsWindow != null)
         {
             try
@@ -83,10 +83,10 @@ public sealed partial class MainWindow : Window
         try { SystemBackdrop = new MicaBackdrop(); }
         catch { SystemBackdrop = null; }
 
-        // ★B: タイトルバー「×」を捕まえて、アプリ終了ではなく「Atsumareウィンドウ群のクローズ」に統一
+        // ��B: �^�C�g���o�[�u�~�v��߂܂��āA�A�v���I���ł͂Ȃ��uAtsumare�E�B���h�E�Q�̃N���[�Y�v�ɓ���
         HookCloseToCloseAll();
 
-        // Esc で閉じる
+        // Esc �ŕ���
         this.Content.PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Windows.System.VirtualKey.Escape)
@@ -94,7 +94,7 @@ public sealed partial class MainWindow : Window
                 e.Handled = true;
                 CloseAllAtsumareWindows();
             }
-            // Ctrl + , で設定
+            // Ctrl + , �Őݒ�
             if (e.Key == Windows.System.VirtualKey.P)
             {
                 var ctrl = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
@@ -109,16 +109,16 @@ public sealed partial class MainWindow : Window
             }
         };
 
-        // 初回フォーカス
+        // ����t�H�[�J�X
         this.Activated += MainWindow_Activated;
 
-        // 検索初期反映
+        // �����������f
         ApplyFilter("");
 
-        // 起動直後の一覧ロード
+        // �N������̈ꗗ���[�h
         _ = DispatcherQueue.TryEnqueue(async () => await ReloadRunningWindowsAsync());
 
-        // Close されたら App.OpenWindows から除去（App 側で Add している前提）
+        // Close ���ꂽ�� App.OpenWindows ���珜���iApp ���� Add ���Ă���O��j
         this.Closed += (_, __) =>
         {
             try { App.OpenWindows.Remove(this); } catch { }
@@ -127,7 +127,7 @@ public sealed partial class MainWindow : Window
 
     private void HookCloseToCloseAll()
     {
-        // AppWindow.Closing はキャンセル可能（Window.Closed は不可）
+        // AppWindow.Closing はキャンセル可（Window.Closed は不可）
         var appWindow = GetAppWindow();
         appWindow.Closing += (_, e) =>
         {
@@ -135,10 +135,17 @@ public sealed partial class MainWindow : Window
             if (IsClosing)
                 return;
 
-            // ユーザーの×などの「通常クローズ」はキャンセルして、全ウィンドウを閉じる
-            e.Cancel = true;
+            // CloseButtonMinimizesToTray = false のときは、×ボタンでアプリ終了
+            if (!SettingsStore.Current.CloseButtonMinimizesToTray)
+            {
+                e.Cancel = true;
+                DispatcherQueue.TryEnqueue(() => App.RequestExit());
+                return;
+            }
 
-            // UIスレッドで安全に
+            // CloseButtonMinimizesToTray = true（デフォルト）のときは
+            // ピッカーをすべて閉じるだけ（トレイ常駐は綴持）
+            e.Cancel = true;
             DispatcherQueue.TryEnqueue(() => CloseAllAtsumareWindows());
         };
     }
@@ -207,7 +214,7 @@ public sealed partial class MainWindow : Window
     private void SetWindowSize(int width, int height)
         => GetAppWindow().Resize(new Windows.Graphics.SizeInt32(width, height));
 
-    // 表示前に Win32 で位置を当ててちらつきを減らす
+    // �\���O�� Win32 �ňʒu�𓖂ĂĂ���������炷
     public void PrePositionToMonitorCenter(IntPtr hMon, int width, int height)
     {
         var hwnd = WindowNative.GetWindowHandle(this);
@@ -264,7 +271,7 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
     {
-        // 非アクティブになったら閉じる（ただし自アプリ内のフォーカス移動は除外）
+        // ��A�N�e�B�u�ɂȂ��������i���������A�v�����̃t�H�[�J�X�ړ��͏��O�j
         if (args.WindowActivationState == WindowActivationState.Deactivated)
         {
             if (App.IsAutoCloseSuppressed())
@@ -288,7 +295,7 @@ public sealed partial class MainWindow : Window
         });
     }
 
-    // GridView click: そのアプリ(PID)の全ウィンドウをこのモニターへ寄せて、Atsumareを閉じる
+    // GridView click: ���̃A�v��(PID)�̑S�E�B���h�E�����̃��j�^�[�֊񂹂āAAtsumare�����
     private void GridView_ItemClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is not AppGroupItem item) return;
@@ -300,14 +307,14 @@ public sealed partial class MainWindow : Window
 
         MoveAllWindowsOfProcessToMonitor(item.Pid, targetMon);
 
-        // 操作後に即閉じる
+        // �����ɑ�����
         DispatcherQueue.TryEnqueue(CloseAllAtsumareWindows);
     }
 
     // =========================
     // Close all Atsumare windows (safe)
     // =========================
-    private static int _closingWindows; // 0/1 (Interlockedでガード)
+    private static int _closingWindows; // 0/1 (Interlocked�ŃK�[�h)
 
     private static void CloseAllAtsumareWindows()
     {
@@ -350,7 +357,7 @@ public sealed partial class MainWindow : Window
 
         foreach (var hWnd in hwnds)
         {
-            // 既に同じモニターならスキップ
+            // ���ɓ������j�^�[�Ȃ�X�L�b�v
             var currentMon = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
             if (currentMon == targetMonitor)
                 continue;
@@ -374,7 +381,7 @@ public sealed partial class MainWindow : Window
             if (!GetWindowRect(hWnd, out var curRect))
                 continue;
 
-            // 最大化は一旦通常にして rcNormalPosition を基準に動かす
+            // �ő剻�͈�U�ʏ�ɂ��� rcNormalPosition ����ɓ�����
             if (wasMax && hasWp)
             {
                 wp.showCmd = SW_SHOWNORMAL;
@@ -400,7 +407,7 @@ public sealed partial class MainWindow : Window
                 continue;
             }
 
-            // 状態復帰（最大化）
+            // ��ԕ��A�i�ő剻�j
             if (hasWp)
             {
                 wp.rcNormalPosition = mapped;
@@ -518,12 +525,12 @@ public sealed partial class MainWindow : Window
             .GroupBy(w => w.pid)
             .Select(g =>
             {
-                // foreground が同PIDならそれを代表に
+                // foreground ����PID�Ȃ炻����\��
                 var fgItem = g.FirstOrDefault(x => x.hWnd == fg);
                 if (fgItem.hWnd != IntPtr.Zero)
                     return fgItem;
 
-                // 一番面積が大きいウィンドウを代表に
+                // ��Ԗʐς��傫���E�B���h�E���\��
                 (IntPtr hWnd, string title, uint pid) best = default;
                 long bestArea = -1;
 
@@ -586,7 +593,7 @@ public sealed partial class MainWindow : Window
         }
         catch
         {
-            // 取れない場合もある（権限/瞬間終了など）。0にしてPIDのみ扱いに近づける
+            // ���Ȃ��ꍇ������i����/�u�ԏI���Ȃǁj�B0�ɂ���PID�݈̂����ɋ߂Â���
             return 0;
         }
     }
@@ -597,7 +604,7 @@ public sealed partial class MainWindow : Window
     {
         var key = (pid, TryGetProcessStartTicks(pid));
 
-        // 既にあれば即返す（null もキャッシュして無限再試行を防ぐ）
+        // ���ɂ���Α��Ԃ��inull ���L���b�V�����Ė����Ď��s��h���j
         if (_iconCache.TryGetValue(key, out var cached))
             return cached;
 
@@ -799,7 +806,7 @@ public sealed partial class MainWindow : Window
         if (exclude.Count == 0) return false;
         try
         {
-            var name = Process.GetProcessById((int)pid).ProcessName; // "chrome" 等
+            var name = Process.GetProcessById((int)pid).ProcessName; // "chrome" ��
             return exclude.Contains(name);
         }
         catch

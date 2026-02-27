@@ -45,6 +45,19 @@ namespace Atsumare
             Interlocked.Exchange(ref _toggleRequested, 1);
         }
 
+        /// <summary>
+        /// どこからでも呼べるアプリ終了要求。UIスレッド以外からも安全。
+        /// </summary>
+        internal static void RequestExit()
+        {
+            var app = (App)Application.Current;
+            var q = app._uiQueue;
+            if (q != null)
+                q.TryEnqueue(() => app.ExitApplication());
+            else
+                app.ExitApplication();
+        }
+
         private void RequestToggleOnUI()
         {
             if (_toggleBusy)
@@ -148,6 +161,12 @@ namespace Atsumare
                     RequestToggleOnUI();
             };
             _pollTimer.Start();
+
+            // StartMinimizedToTray が false のとき、起動直後にピッカーを表示する
+            if (!SettingsStore.Current.StartMinimizedToTray)
+            {
+                dq.TryEnqueue(() => ShowPickerOnAllMonitors());
+            }
         }
         private void ApplyHotkeyFromSettings()
         {
@@ -399,7 +418,7 @@ namespace Atsumare
                 }
             });
         }
-        private void ExitApplication()
+        internal void ExitApplication()
         {
             try
             {
