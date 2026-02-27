@@ -222,6 +222,13 @@
                                 <ToggleSwitch x:Name="SwVerboseLog" Toggled="AnySetting_Toggled"/>
                             </StackPanel>
                         </Border>
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="ログ フォルダ log folder">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="ログフォルダを開く" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock Text="%LocalAppData%\Atsumare\logs にログファイルが保存されます。" Style="{StaticResource CardDescStyle}"/>
+                                <Button Content="フォルダを開く" Click="OpenLogFolder_Click"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
 
                     <!-- ========== Ext ========== -->

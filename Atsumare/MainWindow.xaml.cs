@@ -127,25 +127,18 @@ public sealed partial class MainWindow : Window
 
     private void HookCloseToCloseAll()
     {
-        // AppWindow.Closing はキャンセル可（Window.Closed は不可）
+        // AppWindow.Closing �̓L�����Z���\�iWindow.Closed �͕s�j
         var appWindow = GetAppWindow();
         appWindow.Closing += (_, e) =>
         {
-            // CloseAllAtsumareWindows() からの Close は通す
+            // CloseAllAtsumareWindows() ����� Close �͒ʂ�
             if (IsClosing)
                 return;
 
-            // CloseButtonMinimizesToTray = false のときは、×ボタンでアプリ終了
-            if (!SettingsStore.Current.CloseButtonMinimizesToTray)
-            {
-                e.Cancel = true;
-                DispatcherQueue.TryEnqueue(() => App.RequestExit());
-                return;
-            }
-
-            // CloseButtonMinimizesToTray = true（デフォルト）のときは
-            // ピッカーをすべて閉じるだけ（トレイ常駐は綴持）
+            // ���[�U�[�́~�Ȃǂ́u�ʏ�N���[�Y�v�̓L�����Z�����āA�S�E�B���h�E�����
             e.Cancel = true;
+
+            // UI�X���b�h�ň��S��
             DispatcherQueue.TryEnqueue(() => CloseAllAtsumareWindows());
         };
     }
@@ -354,6 +347,7 @@ public sealed partial class MainWindow : Window
         var targetWork = tmi.rcWork;
 
         var hwnds = EnumerateTopLevelWindowsByPid(pid);
+        App.LogVerbose($"[Move] pid={pid} targetMon=0x{targetMonitor.ToInt64():X} windows={hwnds.Count}");
 
         foreach (var hWnd in hwnds)
         {
@@ -403,9 +397,11 @@ public sealed partial class MainWindow : Window
             if (!ok)
             {
                 int err = Marshal.GetLastWin32Error();
-                Debug.WriteLine($"SetWindowPos FAILED err={err} hwnd=0x{hWnd.ToInt64():X}");
+                App.LogLine($"[Move] SetWindowPos FAILED err={err} hwnd=0x{hWnd.ToInt64():X}");
                 continue;
             }
+
+            App.LogVerbose($"[Move] hwnd=0x{hWnd.ToInt64():X} -> ({mapped.Left},{mapped.Top}) wasMax={wasMax} wasMin={wasMin}");
 
             // ��ԕ��A�i�ő剻�j
             if (hasWp)
@@ -576,6 +572,8 @@ public sealed partial class MainWindow : Window
                 Description = $"PID: {w.pid}"
             });
         }
+
+        App.LogVerbose($"[Reload] {AllItems.Count} apps loaded (from {windows.Count} windows)");
 
         ApplyFilter(FilterBox.Text);
     }

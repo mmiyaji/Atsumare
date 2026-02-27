@@ -10,6 +10,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using Windows.Storage;
+using Windows.System;
 namespace Atsumare;
 
 public sealed partial class SettingsWindow : Window
@@ -372,5 +374,59 @@ public sealed partial class SettingsWindow : Window
 
         // Atsumare.exe -> "Atsumare"
         return Process.GetCurrentProcess().ProcessName;
+    }
+
+    private static bool IsPackaged()
+    {
+        try
+        {
+            // パッケージなら Package.Current が取得できる
+            _ = Windows.ApplicationModel.Package.Current;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string GetLogDir()
+    {
+        if (IsPackaged())
+        {
+            // MSIX: LocalState 配下（Packages\<PFN>\LocalState）
+            return System.IO.Path.Combine(ApplicationData.Current.LocalFolder.Path, "logs");
+        }
+
+        // 非MSIX: 従来通り
+        return System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Atsumare", "logs");
+    }
+
+    private async void OpenLogFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var logDir = GetLogDir();
+        System.IO.Directory.CreateDirectory(logDir);
+
+        // なるべく StorageFolder 経由で開く（パッケージ環境で安定）
+        try
+        {
+            var folder = await StorageFolder.GetFolderFromPathAsync(logDir);
+            var ok = await Launcher.LaunchFolderAsync(folder);
+            if (ok) return;
+        }
+        catch
+        {
+            // フォールバックへ
+        }
+
+        // 最後の手段：パス指定（成功/失敗を確認）
+        var ok2 = await Launcher.LaunchFolderPathAsync(logDir);
+        if (!ok2)
+        {
+            // ここはお好みで ContentDialog 等に差し替え
+            Debug.WriteLine($"Failed to open log folder: {logDir}");
+        }
     }
 }

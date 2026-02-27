@@ -202,7 +202,7 @@ namespace Atsumare
                 _hotkey?.Dispose();
                 _hotkey = newHotkey;
 
-                LogLine($"[HOTKEY] Registered mods=0x{mods:X} vk=0x{vk:X}");
+                LogVerbose($"[HOTKEY] Registered mods=0x{mods:X} vk=0x{vk:X}");
             }
             catch (Exception ex)
             {
@@ -474,7 +474,7 @@ namespace Atsumare
                 "logs",
                 $"app-{DateTime.Now:yyyyMMdd}.log");
 
-        private static void LogLine(string message)
+        internal static void LogLine(string message)
         {
             try
             {
@@ -486,6 +486,15 @@ namespace Atsumare
                 }
             }
             catch { }
+        }
+
+        /// <summary>
+        /// EnableVerboseLog が true のときだけ書き込む診断ログ。
+        /// </summary>
+        internal static void LogVerbose(string message)
+        {
+            if (!SettingsStore.Current.EnableVerboseLog) return;
+            LogLine($"[V] {message}");
         }
 
         private static void LogException(string where, Exception ex)
