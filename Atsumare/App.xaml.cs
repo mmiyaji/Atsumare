@@ -6,6 +6,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Windows.Storage;
 
 namespace Atsumare
 {
@@ -167,6 +168,8 @@ namespace Atsumare
             {
                 dq.TryEnqueue(() => ShowPickerOnAllMonitors());
             }
+            LogLine($"[BOOT] IsPackaged={IsPackaged()} LogDir={GetLogDir()}");
+
         }
         private void ApplyHotkeyFromSettings()
         {
@@ -467,13 +470,29 @@ namespace Atsumare
             return Environment.TickCount64 < until;
         }
 
-        private static string LogPath =>
-            Path.Combine(
+        private static bool IsPackaged()
+        {
+            try { _ = Windows.ApplicationModel.Package.Current; return true; }
+            catch { return false; }
+        }
+
+        private static string GetLogDir()
+        {
+            if (IsPackaged())
+            {
+                // MSIX: Packages\<PFN>\LocalState\logs
+                return Path.Combine(ApplicationData.Current.LocalFolder.Path, "logs");
+            }
+
+            // 非MSIX: 従来どおり
+            return Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "Atsumare",
-                "logs",
-                $"app-{DateTime.Now:yyyyMMdd}.log");
+                "logs");
+        }
 
+        private static string LogPath =>
+            Path.Combine(GetLogDir(), $"app-{DateTime.Now:yyyyMMdd}.log");
         internal static void LogLine(string message)
         {
             try
