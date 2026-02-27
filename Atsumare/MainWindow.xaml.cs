@@ -31,10 +31,10 @@ public sealed partial class MainWindow : Window
     private bool _focusedOnce;
     private bool _topMostOnce;
 
-    // ‚±‚ÌƒEƒBƒ“ƒhƒE‚ª•Â‚¶ˆ—‚É“ü‚Á‚½‚ç truei“ñd Close –h~—pj
+    // ã“ã®ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ãŒé–‰ã˜å‡¦ç†ã«å…¥ã£ãŸã‚‰ trueï¼ˆäºŒé‡ Close é˜²æ­¢ç”¨ï¼‰
     public bool IsClosing { get; internal set; }
 
-    // ‚±‚Ì MainWindow ‚Ì’S“–ƒ‚ƒjƒ^[iƒNƒŠƒbƒN‚ÌŠñ‚¹æj
+    // ã“ã® MainWindow ã®æ‹…å½“ãƒ¢ãƒ‹ã‚¿ãƒ¼ï¼ˆã‚¯ãƒªãƒƒã‚¯æ™‚ã®å¯„ã›å…ˆï¼‰
     private IntPtr _targetMonitorForThisWindow = IntPtr.Zero;
 
     private double _tileWidth = 180;
@@ -56,7 +56,7 @@ public sealed partial class MainWindow : Window
 
     private void OpenSettings()
     {
-        // Šù‚ÉŠJ‚¢‚Ä‚¢‚½‚ç‘O–Ê‚É
+        // æ—¢ã«é–‹ã„ã¦ã„ãŸã‚‰å‰é¢ã«
         if (_settingsWindow != null)
         {
             try
@@ -83,10 +83,10 @@ public sealed partial class MainWindow : Window
         try { SystemBackdrop = new MicaBackdrop(); }
         catch { SystemBackdrop = null; }
 
-        // šB: ƒ^ƒCƒgƒ‹ƒo[u~v‚ğ•ß‚Ü‚¦‚ÄAƒAƒvƒŠI—¹‚Å‚Í‚È‚­uAtsumareƒEƒBƒ“ƒhƒEŒQ‚ÌƒNƒ[ƒYv‚É“ˆê
+        // â˜…B: ã‚¿ã‚¤ãƒˆãƒ«ãƒãƒ¼ã€ŒÃ—ã€ã‚’æ•ã¾ãˆã¦ã€ã‚¢ãƒ—ãƒªçµ‚äº†ã§ã¯ãªãã€ŒAtsumareã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ç¾¤ã®ã‚¯ãƒ­ãƒ¼ã‚ºã€ã«çµ±ä¸€
         HookCloseToCloseAll();
 
-        // Esc ‚Å•Â‚¶‚é
+        // Esc ã§é–‰ã˜ã‚‹
         this.Content.PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Windows.System.VirtualKey.Escape)
@@ -94,7 +94,7 @@ public sealed partial class MainWindow : Window
                 e.Handled = true;
                 CloseAllAtsumareWindows();
             }
-            // Ctrl + , ‚Åİ’è
+            // Ctrl + , ã§è¨­å®š
             if (e.Key == Windows.System.VirtualKey.P)
             {
                 var ctrl = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
@@ -109,16 +109,16 @@ public sealed partial class MainWindow : Window
             }
         };
 
-        // ‰‰ñƒtƒH[ƒJƒX
+        // åˆå›ãƒ•ã‚©ãƒ¼ã‚«ã‚¹
         this.Activated += MainWindow_Activated;
 
-        // ŒŸõ‰Šú”½‰f
+        // æ¤œç´¢åˆæœŸåæ˜ 
         ApplyFilter("");
 
-        // ‹N“®’¼Œã‚Ìˆê——ƒ[ƒh
+        // èµ·å‹•ç›´å¾Œã®ä¸€è¦§ãƒ­ãƒ¼ãƒ‰
         _ = DispatcherQueue.TryEnqueue(async () => await ReloadRunningWindowsAsync());
 
-        // Close ‚³‚ê‚½‚ç App.OpenWindows ‚©‚çœ‹iApp ‘¤‚Å Add ‚µ‚Ä‚¢‚é‘O’ñj
+        // Close ã•ã‚ŒãŸã‚‰ App.OpenWindows ã‹ã‚‰é™¤å»ï¼ˆApp å´ã§ Add ã—ã¦ã„ã‚‹å‰æï¼‰
         this.Closed += (_, __) =>
         {
             try { App.OpenWindows.Remove(this); } catch { }
@@ -127,18 +127,18 @@ public sealed partial class MainWindow : Window
 
     private void HookCloseToCloseAll()
     {
-        // AppWindow.Closing ‚ÍƒLƒƒƒ“ƒZƒ‹‰Â”\iWindow.Closed ‚Í•s‰Âj
+        // AppWindow.Closing ã¯ã‚­ãƒ£ãƒ³ã‚»ãƒ«å¯èƒ½ï¼ˆWindow.Closed ã¯ä¸å¯ï¼‰
         var appWindow = GetAppWindow();
         appWindow.Closing += (_, e) =>
         {
-            // CloseAllAtsumareWindows() ‚©‚ç‚Ì Close ‚Í’Ê‚·
+            // CloseAllAtsumareWindows() ã‹ã‚‰ã® Close ã¯é€šã™
             if (IsClosing)
                 return;
 
-            // ƒ†[ƒU[‚Ì~‚È‚Ç‚Ìu’ÊíƒNƒ[ƒYv‚ÍƒLƒƒƒ“ƒZƒ‹‚µ‚ÄA‘SƒEƒBƒ“ƒhƒE‚ğ•Â‚¶‚é
+            // ãƒ¦ãƒ¼ã‚¶ãƒ¼ã®Ã—ãªã©ã®ã€Œé€šå¸¸ã‚¯ãƒ­ãƒ¼ã‚ºã€ã¯ã‚­ãƒ£ãƒ³ã‚»ãƒ«ã—ã¦ã€å…¨ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚’é–‰ã˜ã‚‹
             e.Cancel = true;
 
-            // UIƒXƒŒƒbƒh‚ÅˆÀ‘S‚É
+            // UIã‚¹ãƒ¬ãƒƒãƒ‰ã§å®‰å…¨ã«
             DispatcherQueue.TryEnqueue(() => CloseAllAtsumareWindows());
         };
     }
@@ -207,7 +207,7 @@ public sealed partial class MainWindow : Window
     private void SetWindowSize(int width, int height)
         => GetAppWindow().Resize(new Windows.Graphics.SizeInt32(width, height));
 
-    // •\¦‘O‚É Win32 ‚ÅˆÊ’u‚ğ“–‚Ä‚Ä‚¿‚ç‚Â‚«‚ğŒ¸‚ç‚·
+    // è¡¨ç¤ºå‰ã« Win32 ã§ä½ç½®ã‚’å½“ã¦ã¦ã¡ã‚‰ã¤ãã‚’æ¸›ã‚‰ã™
     public void PrePositionToMonitorCenter(IntPtr hMon, int width, int height)
     {
         var hwnd = WindowNative.GetWindowHandle(this);
@@ -264,7 +264,7 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
     {
-        // ”ñƒAƒNƒeƒBƒu‚É‚È‚Á‚½‚ç•Â‚¶‚éi‚½‚¾‚µ©ƒAƒvƒŠ“à‚ÌƒtƒH[ƒJƒXˆÚ“®‚ÍœŠOj
+        // éã‚¢ã‚¯ãƒ†ã‚£ãƒ–ã«ãªã£ãŸã‚‰é–‰ã˜ã‚‹ï¼ˆãŸã ã—è‡ªã‚¢ãƒ—ãƒªå†…ã®ãƒ•ã‚©ãƒ¼ã‚«ã‚¹ç§»å‹•ã¯é™¤å¤–ï¼‰
         if (args.WindowActivationState == WindowActivationState.Deactivated)
         {
             if (App.IsAutoCloseSuppressed())
@@ -288,7 +288,7 @@ public sealed partial class MainWindow : Window
         });
     }
 
-    // GridView click: ‚»‚ÌƒAƒvƒŠ(PID)‚Ì‘SƒEƒBƒ“ƒhƒE‚ğ‚±‚Ìƒ‚ƒjƒ^[‚ÖŠñ‚¹‚ÄAAtsumare‚ğ•Â‚¶‚é
+    // GridView click: ãã®ã‚¢ãƒ—ãƒª(PID)ã®å…¨ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚’ã“ã®ãƒ¢ãƒ‹ã‚¿ãƒ¼ã¸å¯„ã›ã¦ã€Atsumareã‚’é–‰ã˜ã‚‹
     private void GridView_ItemClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is not AppGroupItem item) return;
@@ -300,14 +300,14 @@ public sealed partial class MainWindow : Window
 
         MoveAllWindowsOfProcessToMonitor(item.Pid, targetMon);
 
-        // ‘€ìŒã‚É‘¦•Â‚¶‚é
+        // æ“ä½œå¾Œã«å³é–‰ã˜ã‚‹
         DispatcherQueue.TryEnqueue(CloseAllAtsumareWindows);
     }
 
     // =========================
     // Close all Atsumare windows (safe)
     // =========================
-    private static int _closingWindows; // 0/1 (Interlocked‚ÅƒK[ƒh)
+    private static int _closingWindows; // 0/1 (Interlockedã§ã‚¬ãƒ¼ãƒ‰)
 
     private static void CloseAllAtsumareWindows()
     {
@@ -350,7 +350,7 @@ public sealed partial class MainWindow : Window
 
         foreach (var hWnd in hwnds)
         {
-            // Šù‚É“¯‚¶ƒ‚ƒjƒ^[‚È‚çƒXƒLƒbƒv
+            // æ—¢ã«åŒã˜ãƒ¢ãƒ‹ã‚¿ãƒ¼ãªã‚‰ã‚¹ã‚­ãƒƒãƒ—
             var currentMon = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
             if (currentMon == targetMonitor)
                 continue;
@@ -374,7 +374,7 @@ public sealed partial class MainWindow : Window
             if (!GetWindowRect(hWnd, out var curRect))
                 continue;
 
-            // Å‘å‰»‚Íˆê’U’Êí‚É‚µ‚Ä rcNormalPosition ‚ğŠî€‚É“®‚©‚·
+            // æœ€å¤§åŒ–ã¯ä¸€æ—¦é€šå¸¸ã«ã—ã¦ rcNormalPosition ã‚’åŸºæº–ã«å‹•ã‹ã™
             if (wasMax && hasWp)
             {
                 wp.showCmd = SW_SHOWNORMAL;
@@ -400,7 +400,7 @@ public sealed partial class MainWindow : Window
                 continue;
             }
 
-            // ó‘Ô•œ‹AiÅ‘å‰»j
+            // çŠ¶æ…‹å¾©å¸°ï¼ˆæœ€å¤§åŒ–ï¼‰
             if (hasWp)
             {
                 wp.rcNormalPosition = mapped;
@@ -518,12 +518,12 @@ public sealed partial class MainWindow : Window
             .GroupBy(w => w.pid)
             .Select(g =>
             {
-                // foreground ‚ª“¯PID‚È‚ç‚»‚ê‚ğ‘ã•\‚É
+                // foreground ãŒåŒPIDãªã‚‰ãã‚Œã‚’ä»£è¡¨ã«
                 var fgItem = g.FirstOrDefault(x => x.hWnd == fg);
                 if (fgItem.hWnd != IntPtr.Zero)
                     return fgItem;
 
-                // ˆê”Ô–ÊÏ‚ª‘å‚«‚¢ƒEƒBƒ“ƒhƒE‚ğ‘ã•\‚É
+                // ä¸€ç•ªé¢ç©ãŒå¤§ãã„ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚’ä»£è¡¨ã«
                 (IntPtr hWnd, string title, uint pid) best = default;
                 long bestArea = -1;
 
@@ -586,7 +586,7 @@ public sealed partial class MainWindow : Window
         }
         catch
         {
-            // æ‚ê‚È‚¢ê‡‚à‚ ‚éiŒ ŒÀ/uŠÔI—¹‚È‚ÇjB0‚É‚µ‚ÄPID‚Ì‚İˆµ‚¢‚É‹ß‚Ã‚¯‚é
+            // å–ã‚Œãªã„å ´åˆã‚‚ã‚ã‚‹ï¼ˆæ¨©é™/ç¬é–“çµ‚äº†ãªã©ï¼‰ã€‚0ã«ã—ã¦PIDã®ã¿æ‰±ã„ã«è¿‘ã¥ã‘ã‚‹
             return 0;
         }
     }
@@ -597,7 +597,7 @@ public sealed partial class MainWindow : Window
     {
         var key = (pid, TryGetProcessStartTicks(pid));
 
-        // Šù‚É‚ ‚ê‚Î‘¦•Ô‚·inull ‚àƒLƒƒƒbƒVƒ…‚µ‚Ä–³ŒÀÄs‚ğ–h‚®j
+        // æ—¢ã«ã‚ã‚Œã°å³è¿”ã™ï¼ˆnull ã‚‚ã‚­ãƒ£ãƒƒã‚·ãƒ¥ã—ã¦ç„¡é™å†è©¦è¡Œã‚’é˜²ãï¼‰
         if (_iconCache.TryGetValue(key, out var cached))
             return cached;
 
@@ -799,7 +799,7 @@ public sealed partial class MainWindow : Window
         if (exclude.Count == 0) return false;
         try
         {
-            var name = Process.GetProcessById((int)pid).ProcessName; // "chrome" “™
+            var name = Process.GetProcessById((int)pid).ProcessName; // "chrome" ç­‰
             return exclude.Contains(name);
         }
         catch

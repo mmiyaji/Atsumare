@@ -29,14 +29,14 @@ public sealed partial class SettingsWindow : Window
     public SettingsWindow()
     {
         InitializeComponent();
-        Title = "İ’è";
+        Title = "è¨­å®š";
 
         try { SystemBackdrop = new MicaBackdrop(); }
         catch { SystemBackdrop = null; }
 
         Nav.SelectedItem = Nav.MenuItems[0];
 
-        // ƒnƒ“ƒhƒ‰‚Íƒƒ\ƒbƒh‚É‚µ‚ÄAClosed‚Å‰ğœ‚·‚éi“½–¼ƒ‰ƒ€ƒ_‚Ì‚Ü‚Ü‚¾‚Æ‰ğœ‚Å‚«‚È‚¢j
+        // ãƒãƒ³ãƒ‰ãƒ©ã¯ãƒ¡ã‚½ãƒƒãƒ‰ã«ã—ã¦ã€Closedã§è§£é™¤ã™ã‚‹ï¼ˆåŒ¿åãƒ©ãƒ ãƒ€ã®ã¾ã¾ã ã¨è§£é™¤ã§ããªã„ï¼‰
         this.Activated += SettingsWindow_Activated;
         this.SizeChanged += SettingsWindow_SizeChanged;
         this.Closed += SettingsWindow_Closed;
@@ -52,7 +52,7 @@ public sealed partial class SettingsWindow : Window
     {
         _hotkeyKeys.Clear();
 
-        // ‚æ‚­g‚¤‚à‚Ì
+        // ã‚ˆãä½¿ã†ã‚‚ã®
         _hotkeyKeys.Add(new HotkeyKeyItem { Label = "Space", Vk = 0x20 });
         _hotkeyKeys.Add(new HotkeyKeyItem { Label = "Enter", Vk = 0x0D });
         _hotkeyKeys.Add(new HotkeyKeyItem { Label = "Tab", Vk = 0x09 });
@@ -84,7 +84,7 @@ public sealed partial class SettingsWindow : Window
     {
         _isClosing = true;
 
-        // ”O‚Ì‚½‚ß‰ğœi•Â‚¶Û‚ÌƒCƒxƒ“ƒg”ò‚Ñ‚Å—‚¿‚é‚Ì‚ğ–h‚®j
+        // å¿µã®ãŸã‚è§£é™¤ï¼ˆé–‰ã˜éš›ã®ã‚¤ãƒ™ãƒ³ãƒˆé£›ã³ã§è½ã¡ã‚‹ã®ã‚’é˜²ãï¼‰
         this.Activated -= SettingsWindow_Activated;
         this.SizeChanged -= SettingsWindow_SizeChanged;
         this.Closed -= SettingsWindow_Closed;
@@ -101,7 +101,7 @@ public sealed partial class SettingsWindow : Window
         }
         catch
         {
-            // •Â‚¶Û‚ÉWinRT‘¤‚ª—áŠO‚ğ“Š‚°‚é‚±‚Æ‚ª‚ ‚é‚½‚ßˆ¬‚é
+            // é–‰ã˜éš›ã«WinRTå´ãŒä¾‹å¤–ã‚’æŠ•ã’ã‚‹ã“ã¨ãŒã‚ã‚‹ãŸã‚æ¡ã‚‹
         }
     }
 
@@ -134,7 +134,7 @@ public sealed partial class SettingsWindow : Window
             else if (tb == SettingsSearchBoxNarrow && SettingsSearchBoxWide.Text != tb.Text)
                 SettingsSearchBoxWide.Text = tb.Text;
         }
-        // ‚Ç‚¿‚ç‚ª sender ‚Å‚à“¯‚¶ŒŸõŒê‚ğg‚¤
+        // ã©ã¡ã‚‰ãŒ sender ã§ã‚‚åŒã˜æ¤œç´¢èªã‚’ä½¿ã†
         var q = (SettingsSearchBoxWide.Text ?? "").Trim().ToLowerInvariant();
 
         var panel =
@@ -184,13 +184,13 @@ public sealed partial class SettingsWindow : Window
     }
     private void ApplyHotkeyToUI(AtsumareSettings s)
     {
-        // MOD_* ‚ğ int ‚Å•ÛiWin32‚Æ“¯‚¶j
+        // MOD_* ã‚’ int ã§ä¿æŒï¼ˆWin32ã¨åŒã˜ï¼‰
         CbModAlt.IsChecked = (s.HotkeyModifiers & 0x0001) != 0;
         CbModCtrl.IsChecked = (s.HotkeyModifiers & 0x0002) != 0;
         CbModShift.IsChecked = (s.HotkeyModifiers & 0x0004) != 0;
-        CbModWin.IsChecked = (s.HotkeyModifiers & 0x0008) != 0;
+        //CbModWin.IsChecked = (s.HotkeyModifiers & 0x0008) != 0;
 
-        // VK ‚ğ‘I‘ğ
+        // VK ã‚’é¸æŠ
         var item = _hotkeyKeys.FirstOrDefault(x => x.Vk == s.HotkeyVirtualKey);
         if (item != null)
             CbHotkeyKey.SelectedItem = item;
@@ -204,7 +204,7 @@ public sealed partial class SettingsWindow : Window
         if (CbModCtrl.IsChecked == true) parts.Add("Ctrl");
         if (CbModAlt.IsChecked == true) parts.Add("Alt");
         if (CbModShift.IsChecked == true) parts.Add("Shift");
-        if (CbModWin.IsChecked == true) parts.Add("Win");
+        //if (CbModWin.IsChecked == true) parts.Add("Win");
 
         var key = (CbHotkeyKey.SelectedItem as HotkeyKeyItem)?.Label ?? "";
         if (!string.IsNullOrEmpty(key)) parts.Add(key);
@@ -219,11 +219,11 @@ public sealed partial class SettingsWindow : Window
         if (CbModAlt.IsChecked == true) mods |= 0x0001;
         if (CbModCtrl.IsChecked == true) mods |= 0x0002;
         if (CbModShift.IsChecked == true) mods |= 0x0004;
-        if (CbModWin.IsChecked == true) mods |= 0x0008;
+        //if (CbModWin.IsChecked == true) mods |= 0x0008;
 
         var vk = (CbHotkeyKey.SelectedItem as HotkeyKeyItem)?.Vk ?? 0x20;
 
-        // CüƒL[‚È‚µ‚Í–ŒÌ‚è‚â‚·‚¢‚Ì‚Å‹­§‚Å Ctrl+Alt ‚É–ß‚·iD‚İ‚Å•ÏX‰Âj
+        // ä¿®é£¾ã‚­ãƒ¼ãªã—ã¯äº‹æ•…ã‚Šã‚„ã™ã„ã®ã§å¼·åˆ¶ã§ Ctrl+Alt ã«æˆ»ã™ï¼ˆå¥½ã¿ã§å¤‰æ›´å¯ï¼‰
         if (mods == 0) mods = 0x0002 | 0x0001;
 
         var s = SettingsStore.Current;
@@ -252,11 +252,11 @@ public sealed partial class SettingsWindow : Window
 
         var normalized = NormalizeExcludeCsv(TbExcludeCsv.Text);
 
-        // ‹ó‚É‚È‚Á‚½‚çˆÀ‘S‘¤‚Å©•ª©g‚ğ–ß‚·i”CˆÓB•s—v‚È‚çíœOKj
+        // ç©ºã«ãªã£ãŸã‚‰å®‰å…¨å´ã§è‡ªåˆ†è‡ªèº«ã‚’æˆ»ã™ï¼ˆä»»æ„ã€‚ä¸è¦ãªã‚‰å‰Šé™¤OKï¼‰
         if (string.IsNullOrWhiteSpace(normalized))
             normalized = Process.GetCurrentProcess().ProcessName;
 
-        // TextBox ‚Ö–ß‚·iƒJ[ƒ\ƒ‹‚ª”ò‚Ô‚Ì‚ªŒ™‚È‚ç‚±‚ÌƒuƒƒbƒN‚ÍÈ—ªOKj
+        // TextBox ã¸æˆ»ã™ï¼ˆã‚«ãƒ¼ã‚½ãƒ«ãŒé£›ã¶ã®ãŒå«Œãªã‚‰ã“ã®ãƒ–ãƒ­ãƒƒã‚¯ã¯çœç•¥OKï¼‰
         if (TbExcludeCsv.Text != normalized)
         {
             _isLoading = true;
@@ -283,17 +283,17 @@ public sealed partial class SettingsWindow : Window
         PanelExt.Visibility = tag == "ext" ? Visibility.Visible : Visibility.Collapsed;
         PanelAbout.Visibility = tag == "about" ? Visibility.Visible : Visibility.Collapsed;
 
-        PageTitle.Text = item.Content?.ToString() ?? "İ’è";
+        PageTitle.Text = item.Content?.ToString() ?? "è¨­å®š";
         SettingsSearchBoxWide.Text = "";
         SettingsSearchBoxNarrow.Text = "";
         PageSubtitle.Text = tag switch
         {
-            "general" => "Šî–{“®ì‚ğİ’è‚µ‚Ü‚·",
-            "move" => "ˆÚ“®‚Ì‹““®‚ğİ’è‚µ‚Ü‚·",
-            "applist" => "ˆê——•\¦‚ÌƒtƒBƒ‹ƒ^‚ğİ’è‚µ‚Ü‚·",
-            "log" => "f’f—p‚ÌƒƒOİ’è‚Å‚·",
-            "ext" => "«—ˆ‚ÌŠg’£İ’è‚Å‚·",
-            "about" => "ƒAƒvƒŠî•ñ",
+            "general" => "åŸºæœ¬å‹•ä½œã‚’è¨­å®šã—ã¾ã™",
+            "move" => "ç§»å‹•ã®æŒ™å‹•ã‚’è¨­å®šã—ã¾ã™",
+            "applist" => "ä¸€è¦§è¡¨ç¤ºã®ãƒ•ã‚£ãƒ«ã‚¿ã‚’è¨­å®šã—ã¾ã™",
+            "log" => "è¨ºæ–­ç”¨ã®ãƒ­ã‚°è¨­å®šã§ã™",
+            "ext" => "å°†æ¥ã®æ‹¡å¼µè¨­å®šã§ã™",
+            "about" => "ã‚¢ãƒ—ãƒªæƒ…å ±",
             _ => ""
         };
     }
@@ -350,7 +350,7 @@ public sealed partial class SettingsWindow : Window
         }
         catch
         {
-            // ‚±‚±‚ª—‚¿‚â‚·‚¢‚Ì‚Åˆ¬‚é
+            // ã“ã“ãŒè½ã¡ã‚„ã™ã„ã®ã§æ¡ã‚‹
         }
     }
     private static string NormalizeExcludeCsv(string? csv)
