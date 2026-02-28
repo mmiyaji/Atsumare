@@ -31,10 +31,10 @@ public sealed partial class MainWindow : Window
     private bool _focusedOnce;
     private bool _topMostOnce;
 
-    // ���̃E�B���h�E���������ɓ������� true�i��d Close �h�~�p�j
+    // このウィンドウを閉じる処理が進行中なら true（多重 Close 防止用）
     public bool IsClosing { get; internal set; }
 
-    // ���� MainWindow �̒S�����j�^�[�i�N���b�N���̊񂹐�j
+    // この MainWindow が担当するターゲットモニター（クリック時にここへ寄せる）
     private IntPtr _targetMonitorForThisWindow = IntPtr.Zero;
 
     private double _tileWidth = 180;
@@ -50,13 +50,15 @@ public sealed partial class MainWindow : Window
     }
 
     private AppWindow? _cachedAppWindow;
+
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<(uint pid, long startTicks), ImageSource?> _iconCache
-    = new();
+        = new();
+
     private SettingsWindow? _settingsWindow;
 
     private void OpenSettings()
     {
-        // ���ɊJ���Ă�����O�ʂ�
+        // 既に開いている場合は前面へ
         if (_settingsWindow != null)
         {
             try
@@ -83,18 +85,20 @@ public sealed partial class MainWindow : Window
         try { SystemBackdrop = new MicaBackdrop(); }
         catch { SystemBackdrop = null; }
 
-        // ��B: �^�C�g���o�[�u�~�v��߂܂��āA�A�v���I���ł͂Ȃ��uAtsumare�E�B���h�E�Q�̃N���[�Y�v�ɓ���
+        // ★重要：タイトルバーの×ボタン等の「通常クローズ」を捕捉して、Atsumare の全ウィンドウを閉じる
         HookCloseToCloseAll();
 
-        // Esc �ŕ���
+        // Esc で閉じる
         this.Content.PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Windows.System.VirtualKey.Escape)
             {
                 e.Handled = true;
                 CloseAllAtsumareWindows();
+                return;
             }
-            // Ctrl + , �Őݒ�
+
+            // Ctrl + , で設定（※現在は P になっているので、必要ならキーを変えてください）
             if (e.Key == Windows.System.VirtualKey.P)
             {
                 var ctrl = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
@@ -109,16 +113,16 @@ public sealed partial class MainWindow : Window
             }
         };
 
-        // ����t�H�[�J�X
+        // フォーカス関連
         this.Activated += MainWindow_Activated;
 
-        // �����������f
+        // 初期状態は全件表示
         ApplyFilter("");
 
-        // �N������̈ꗗ���[�h
+        // 起動時に実行中ウィンドウの一覧をロード
         _ = DispatcherQueue.TryEnqueue(async () => await ReloadRunningWindowsAsync());
 
-        // Close ���ꂽ�� App.OpenWindows ���珜���iApp ���� Add ���Ă���O��j
+        // Close されたら App.OpenWindows から除去（App 側で Add している前提）
         this.Closed += (_, __) =>
         {
             try { App.OpenWindows.Remove(this); } catch { }
@@ -127,19 +131,32 @@ public sealed partial class MainWindow : Window
 
     private void HookCloseToCloseAll()
     {
-        // AppWindow.Closing �̓L�����Z���\�iWindow.Closed �͕s�j
+        // AppWindow.Closing はキャンセル可能（Window.Closed は不可）
         var appWindow = GetAppWindow();
         appWindow.Closing += (_, e) =>
         {
-            // CloseAllAtsumareWindows() ����� Close �͒ʂ�
-            if (IsClosing)
-                return;
+            // ここは「未処理 Win32 例外」の起点になりやすいので、落ち止めを入れる
+            try
+            {
+                // CloseAllAtsumareWindows() 経由の Close は通す
+                if (IsClosing)
+                    return;
 
-            // ���[�U�[�́~�Ȃǂ́u�ʏ�N���[�Y�v�̓L�����Z�����āA�S�E�B���h�E�����
-            e.Cancel = true;
+                // ユーザーの×などの「通常クローズ」はキャンセルして、全ウィンドウを閉じる
+                e.Cancel = true;
 
-            // UI�X���b�h�ň��S��
-            DispatcherQueue.TryEnqueue(() => CloseAllAtsumareWindows());
+                // UI スレッドで安全に実行
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    try { CloseAllAtsumareWindows(); }
+                    catch (Exception ex) { Debug.WriteLine("CloseAll enqueue failed: " + ex); }
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("AppWindow.Closing handler failed: " + ex);
+                // ここで再スローしない（JIT を避ける）
+            }
         };
     }
 
@@ -207,7 +224,7 @@ public sealed partial class MainWindow : Window
     private void SetWindowSize(int width, int height)
         => GetAppWindow().Resize(new Windows.Graphics.SizeInt32(width, height));
 
-    // �\���O�� Win32 �ňʒu�𓖂ĂĂ���������炷
+    // 表示前に Win32 で位置を当てておく（ちらつき低減）
     public void PrePositionToMonitorCenter(IntPtr hMon, int width, int height)
     {
         var hwnd = WindowNative.GetWindowHandle(this);
@@ -255,6 +272,7 @@ public sealed partial class MainWindow : Window
         // 例2：シングルトン運用（おすすめ：多重起動防止）
         App.ShowSettings();
     }
+
     private void ApplyFilter(string text)
     {
         var q = (text ?? "").Trim().ToLowerInvariant();
@@ -273,7 +291,7 @@ public sealed partial class MainWindow : Window
 
     private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
     {
-        // ��A�N�e�B�u�ɂȂ��������i���������A�v�����̃t�H�[�J�X�ړ��͏��O�j
+        // 非アクティブになったら閉じる（設定により抑制する場合もある）
         if (args.WindowActivationState == WindowActivationState.Deactivated)
         {
             if (App.IsAutoCloseSuppressed())
@@ -297,7 +315,7 @@ public sealed partial class MainWindow : Window
         });
     }
 
-    // GridView click: ���̃A�v��(PID)�̑S�E�B���h�E�����̃��j�^�[�֊񂹂āAAtsumare�����
+    // GridView click: このアプリ(PID)の全ウィンドウを指定モニターへ寄せて、Atsumare を閉じる
     private void GridView_ItemClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is not AppGroupItem item) return;
@@ -309,14 +327,14 @@ public sealed partial class MainWindow : Window
 
         MoveAllWindowsOfProcessToMonitor(item.Pid, targetMon);
 
-        // �����ɑ�����
+        // 最後に閉じる
         DispatcherQueue.TryEnqueue(CloseAllAtsumareWindows);
     }
 
     // =========================
     // Close all Atsumare windows (safe)
     // =========================
-    private static int _closingWindows; // 0/1 (Interlocked�ŃK�[�h)
+    private static int _closingWindows; // 0/1 (Interlocked でガード)
 
     private static void CloseAllAtsumareWindows()
     {
@@ -333,9 +351,26 @@ public sealed partial class MainWindow : Window
                     if (w.IsClosing) continue;
 
                     w.IsClosing = true;
-                    w.Close();
+
+                    // UI スレッドで Close（別スレッド Close を避ける）
+                    var dq = w.DispatcherQueue;
+                    if (dq != null)
+                    {
+                        dq.TryEnqueue(() =>
+                        {
+                            try { w.Close(); } catch (Exception ex) { Debug.WriteLine("Window.Close failed: " + ex); }
+                        });
+                    }
+                    else
+                    {
+                        // 念のため
+                        try { w.Close(); } catch { }
+                    }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine("CloseAll loop failed: " + ex);
+                }
             }
         }
         finally
@@ -360,7 +395,7 @@ public sealed partial class MainWindow : Window
 
         foreach (var hWnd in hwnds)
         {
-            // ���ɓ������j�^�[�Ȃ�X�L�b�v
+            // 既に同じモニターならスキップ
             var currentMon = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
             if (currentMon == targetMonitor)
                 continue;
@@ -384,7 +419,7 @@ public sealed partial class MainWindow : Window
             if (!GetWindowRect(hWnd, out var curRect))
                 continue;
 
-            // �ő剻�͈�U�ʏ�ɂ��� rcNormalPosition ����ɓ�����
+            // 最大化は一旦通常に戻して rcNormalPosition を基準に移動
             if (wasMax && hasWp)
             {
                 wp.showCmd = SW_SHOWNORMAL;
@@ -412,7 +447,7 @@ public sealed partial class MainWindow : Window
 
             App.LogVerbose($"[Move] hwnd=0x{hWnd.ToInt64():X} -> ({mapped.Left},{mapped.Top}) wasMax={wasMax} wasMin={wasMin}");
 
-            // ��ԕ��A�i�ő剻�j
+            // 状態復元（最大化）
             if (hasWp)
             {
                 wp.rcNormalPosition = mapped;
@@ -530,12 +565,12 @@ public sealed partial class MainWindow : Window
             .GroupBy(w => w.pid)
             .Select(g =>
             {
-                // foreground ����PID�Ȃ炻����\��
+                // foreground の PID ならそれを表示
                 var fgItem = g.FirstOrDefault(x => x.hWnd == fg);
                 if (fgItem.hWnd != IntPtr.Zero)
                     return fgItem;
 
-                // ��Ԗʐς��傫���E�B���h�E���\��
+                // 最大面積のウィンドウを表示
                 (IntPtr hWnd, string title, uint pid) best = default;
                 long bestArea = -1;
 
@@ -590,7 +625,6 @@ public sealed partial class MainWindow : Window
     // =========================
     // Icon cache (minimal)
     // =========================
-
     private static long TryGetProcessStartTicks(uint pid)
     {
         try
@@ -600,10 +634,11 @@ public sealed partial class MainWindow : Window
         }
         catch
         {
-            // ���Ȃ��ꍇ������i����/�u�ԏI���Ȃǁj�B0�ɂ���PID�݈̂����ɋ߂Â���
+            // 取得できない場合がある（権限/既に終了など）。0 にして PID のみで近似する
             return 0;
         }
     }
+
     // =========================
     // Icon helpers
     // =========================
@@ -611,7 +646,7 @@ public sealed partial class MainWindow : Window
     {
         var key = (pid, TryGetProcessStartTicks(pid));
 
-        // ���ɂ���Α��Ԃ��inull ���L���b�V�����Ė����Ď��s��h���j
+        // 既にあれば返す（null もキャッシュして無限リトライを防止）
         if (_iconCache.TryGetValue(key, out var cached))
             return cached;
 
@@ -798,6 +833,7 @@ public sealed partial class MainWindow : Window
         GetWindowThreadProcessId(fg, out uint fgPid);
         return fgPid == GetCurrentProcessId();
     }
+
     static HashSet<string> BuildExcludeSet()
     {
         var csv = SettingsStore.Current.ExcludeProcessNamesCsv ?? "";
@@ -813,7 +849,7 @@ public sealed partial class MainWindow : Window
         if (exclude.Count == 0) return false;
         try
         {
-            var name = Process.GetProcessById((int)pid).ProcessName; // "chrome" ��
+            var name = Process.GetProcessById((int)pid).ProcessName; // "chrome" など
             return exclude.Contains(name);
         }
         catch

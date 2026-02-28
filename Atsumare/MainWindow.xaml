@@ -6,12 +6,12 @@
     Title="Atsumare">
 
     <Border CornerRadius="20"
-            Padding="16"
+            Padding="16,16,16,0"
             Background="Transparent">
 
         <!-- ★ 3行：検索 / GridView / バー -->
         <Grid RowDefinitions="Auto,*,Auto"
-      Padding="16,16,16,1">
+            Padding="16,18,16,0">
 
             <!-- 検索 -->
             <Grid Grid.Row="0">
