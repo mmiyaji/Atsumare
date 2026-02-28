@@ -38,7 +38,27 @@ namespace Atsumare
 
         public App()
         {
-            InitializeComponent();
+            this.InitializeComponent();
+
+            this.UnhandledException += (_, e) =>
+            {
+                CrashLog.Write(e.Exception, "XamlUnhandledException");
+                // e.Handled = true; // ←切り分け中は OFF 推奨（握りつぶすと原因が見えにくい）
+            };
+
+            AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            {
+                if (e.ExceptionObject is Exception ex)
+                    CrashLog.Write(ex, "AppDomainUnhandledException");
+                else
+                    CrashLog.Write("[AppDomainUnhandledException] " + e.ExceptionObject);
+            };
+
+            TaskScheduler.UnobservedTaskException += (_, e) =>
+            {
+                CrashLog.Write(e.Exception, "UnobservedTaskException");
+                e.SetObserved();
+            };
         }
 
         internal static void RequestToggle()

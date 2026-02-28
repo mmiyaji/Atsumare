@@ -13,6 +13,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -128,7 +129,9 @@ public sealed partial class MainWindow : Window
         {
             try
             {
+                Breadcrumbs.Add("Reload start");
                 await ReloadRunningWindowsAsync(_lifetimeCts.Token);
+                Breadcrumbs.Add("Reload end");
             }
             catch (OperationCanceledException)
             {
@@ -154,6 +157,7 @@ public sealed partial class MainWindow : Window
     // =========================
     private void HookCloseBehavior()
     {
+        Breadcrumbs.Add("Closing handler entered");
         // AppWindow.Closing はキャンセル可能（Window.Closed は不可）
         var appWindow = GetAppWindow();
         appWindow.Closing += (_, e) =>
@@ -711,7 +715,9 @@ public sealed partial class MainWindow : Window
             ct.ThrowIfCancellationRequested();
             if (IsClosing) return;
 
+            Breadcrumbs.Add($"Icon start pid={w.pid} hwnd=0x{w.hWnd.ToInt64():X}");
             var icon = await GetWindowIconAsync(w.hWnd, w.pid);
+            Breadcrumbs.Add($"Icon end pid={w.pid}");
             ct.ThrowIfCancellationRequested();
             if (IsClosing) return;
 
