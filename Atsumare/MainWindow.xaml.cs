@@ -10,6 +10,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
@@ -88,10 +89,10 @@ public sealed partial class MainWindow : Window
         try { SystemBackdrop = new MicaBackdrop(); }
         catch { SystemBackdrop = null; }
 
-        // ★重要：タイトルバーの×ボタン等の「通常クローズ」を捕捉して、Atsumare の全ウィンドウを閉じる
-        HookCloseToCloseAll();
+        // ★重要：×で閉じた時の挙動（トレイ運用/通常終了）をここで統一
+        HookCloseBehavior();
 
-        // Esc で閉じる
+        // Esc で閉じる（= 全ウィンドウを閉じる）
         this.Content.PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Windows.System.VirtualKey.Escape)
@@ -101,7 +102,7 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
-            // Ctrl + , で設定（※現在は P になっているので、必要ならキーを変えてください）
+            // Ctrl + P で設定（※必要ならキーを変更してください）
             if (e.Key == Windows.System.VirtualKey.P)
             {
                 var ctrl = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control)
@@ -139,36 +140,57 @@ public sealed partial class MainWindow : Window
             }
         });
 
-        // Close されたらキャンセルして App.OpenWindows から除去（App 側で Add している前提）
+        // Closed：寿命終了（キャンセル→OpenWindowsから除去）
         this.Closed += (_, __) =>
         {
             try { _lifetimeCts.Cancel(); } catch { }
+            try { _lifetimeCts.Dispose(); } catch { }
             try { App.OpenWindows.Remove(this); } catch { }
         };
     }
 
-    private void HookCloseToCloseAll()
+    // =========================
+    // Close behavior (Tray / Exit)
+    // =========================
+    private void HookCloseBehavior()
     {
         // AppWindow.Closing はキャンセル可能（Window.Closed は不可）
         var appWindow = GetAppWindow();
         appWindow.Closing += (_, e) =>
         {
-            // ここは「未処理 Win32 例外」の起点になりやすいので、落ち止めを入れる
             try
             {
                 // CloseAllAtsumareWindows() 経由の Close は通す
                 if (IsClosing)
                     return;
 
-                // ユーザーの×などの「通常クローズ」はキャンセルして、全ウィンドウを閉じる
+                // ★トレイ運用（起動時トレイ最小化/閉じる→トレイ など）なら「閉じる＝隠す」
+                if (ShouldCloseToTray())
+                {
+                    e.Cancel = true;
+
+                    DispatcherQueue.TryEnqueue(() =>
+                    {
+                        try { HideToTray(); }
+                        catch (Exception ex) { Debug.WriteLine("HideToTray failed: " + ex); }
+                    });
+
+                    return;
+                }
+
+                // ★通常運用なら「全ウィンドウを閉じる」
+                // ここでキャンセル＋CloseAll に寄せると、起動直後でも閉じ順が安定しやすい
                 e.Cancel = true;
 
-                // UI スレッドで安全に実行
-                DispatcherQueue.TryEnqueue(() =>
+                // 起動中の非同期を先に止める（閉じる途中のUI更新を防止）
+                try { _lifetimeCts.Cancel(); } catch { }
+
+                // UIスレッドでまとめて閉じる
+                if (!DispatcherQueue.TryEnqueue(() => CloseAllAtsumareWindows()))
                 {
-                    try { CloseAllAtsumareWindows(); }
-                    catch (Exception ex) { Debug.WriteLine("CloseAll enqueue failed: " + ex); }
-                });
+                    // 念のため直呼び（通常はここに来ません）
+                    CloseAllAtsumareWindows();
+                }
             }
             catch (Exception ex)
             {
@@ -176,6 +198,57 @@ public sealed partial class MainWindow : Window
                 // ここで再スローしない（JIT を避ける）
             }
         };
+    }
+
+    // 「起動時トレイ最小化」を含む“トレイ運用フラグ”を広めに拾う（プロパティ名が違っても落ちない）
+    private static bool ShouldCloseToTray()
+    {
+        // あなたの SettingsStore の実プロパティ名に合わせて、必要なら候補を追加してください
+        return GetBoolSettingAny(
+            "MinimizeToTrayOnClose",
+            "CloseToTray",
+            "TrayOnClose",
+            "MinimizeToTray",
+            "EnableTrayMode",
+            "TrayMode",
+            "StartMinimizedToTray",
+            "StartToTray",
+            "TrayMinimizeOnStartup",
+            "StartMinimizeToTray"
+        );
+    }
+
+    private static bool GetBoolSettingAny(params string[] names)
+    {
+        object? current = null;
+        try { current = SettingsStore.Current; } catch { return false; }
+        if (current == null) return false;
+
+        var t = current.GetType();
+        foreach (var name in names)
+        {
+            try
+            {
+                var p = t.GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                if (p == null) continue;
+                if (p.PropertyType != typeof(bool)) continue;
+
+                if (p.GetValue(current) is bool b)
+                    return b;
+            }
+            catch { }
+        }
+
+        return false;
+    }
+
+    private void HideToTray()
+    {
+        var hwnd = WindowNative.GetWindowHandle(this);
+        if (hwnd == IntPtr.Zero) return;
+
+        // WinUI3のWindowに Hide() がないため Win32 で隠す
+        ShowWindow(hwnd, SW_HIDE);
     }
 
     internal void InitializeForMonitor(IntPtr targetMonitor)
@@ -283,10 +356,6 @@ public sealed partial class MainWindow : Window
 
     private void SettingsButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
     {
-        // 例1：都度生成
-        // var w = new SettingsWindow();
-        // w.Activate();
-
         // 例2：シングルトン運用（おすすめ：多重起動防止）
         App.ShowSettings();
     }
@@ -585,7 +654,7 @@ public sealed partial class MainWindow : Window
         }, IntPtr.Zero);
 
         ct.ThrowIfCancellationRequested();
-        if (IsClosing) return; // 念のため
+        if (IsClosing) return;
 
         var fg = GetForegroundWindow();
 
@@ -998,6 +1067,7 @@ public sealed partial class MainWindow : Window
     private const uint SWP_NOACTIVATE = 0x0010;
     private const uint SWP_NOSENDCHANGING = 0x0400;
 
+    private const int SW_HIDE = 0;
     private const int SW_RESTORE = 9;
     private const int SW_SHOWNORMAL = 1;
     private const int SW_SHOWMAXIMIZED = 3;
