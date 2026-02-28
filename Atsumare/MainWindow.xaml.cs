@@ -246,6 +246,15 @@ public sealed partial class MainWindow : Window
     private void SearchIcon_Click(object sender, RoutedEventArgs e)
         => FilterBox.Focus(FocusState.Programmatic);
 
+    private void SettingsButton_Click(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
+    {
+        // 例1：都度生成
+        // var w = new SettingsWindow();
+        // w.Activate();
+
+        // 例2：シングルトン運用（おすすめ：多重起動防止）
+        App.ShowSettings();
+    }
     private void ApplyFilter(string text)
     {
         var q = (text ?? "").Trim().ToLowerInvariant();

@@ -4,50 +4,59 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Atsumare"
     Title="Atsumare">
+
     <Border CornerRadius="20"
             Padding="16"
             Background="Transparent">
 
-        <Grid Padding="16" RowDefinitions="Auto,*" RowSpacing="12">
-            <TextBox x:Name="FilterBox"
-                 PlaceholderText="アプリ検索..."
-                 FontSize="16"
-                 Height="44"
-                 CornerRadius="12"
-                 VerticalContentAlignment="Center"
-                 Padding="44,8,12,4"
-                 TextChanged="FilterBox_TextChanged"/>
+        <!-- ★ 3行：検索 / GridView / バー -->
+        <Grid RowDefinitions="Auto,*,Auto"
+      Padding="16,16,16,1">
 
-            <Button Width="40"
-                Height="36"
-                Margin="6,0,6,0"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Center"
-                Background="Transparent"
-                BorderThickness="0"
-                IsTabStop="False"
-                Click="SearchIcon_Click">
-                <FontIcon Glyph="&#xE721;"
-                    FontFamily="Segoe MDL2 Assets"
-                    FontSize="16"
-                    Opacity="0.75"/>
-            </Button>
+            <!-- 検索 -->
+            <Grid Grid.Row="0">
+                <TextBox x:Name="FilterBox"
+                         PlaceholderText="アプリ検索..."
+                         FontSize="16"
+                         Height="44"
+                         CornerRadius="12"
+                         VerticalContentAlignment="Center"
+                         Padding="44,8,12,4"
+                         TextChanged="FilterBox_TextChanged"/>
+
+                <Button Width="40"
+                        Height="36"
+                        Margin="6,0,6,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        IsTabStop="False"
+                        Click="SearchIcon_Click">
+                    <FontIcon Glyph="&#xE721;"
+                              FontFamily="Segoe MDL2 Assets"
+                              FontSize="16"
+                              Opacity="0.75"/>
+                </Button>
+            </Grid>
+
+            <!-- 一覧 -->
             <GridView x:Name="AppsGrid"
-                Grid.Row="1"
-                HorizontalAlignment="Stretch"
-                HorizontalContentAlignment="Stretch"
-                SizeChanged="AppsGrid_SizeChanged"
-                ItemsSource="{x:Bind FilteredItems, Mode=OneWay}"
-                IsItemClickEnabled="True"
-                ItemClick="GridView_ItemClick"
-                SelectionMode="None"
-                IsTabStop="False">
+                      Grid.Row="1"
+                      HorizontalAlignment="Stretch"
+                      HorizontalContentAlignment="Stretch"
+                      SizeChanged="AppsGrid_SizeChanged"
+                      ItemsSource="{x:Bind FilteredItems, Mode=OneWay}"
+                      IsItemClickEnabled="True"
+                      ItemClick="GridView_ItemClick"
+                      SelectionMode="None"
+                      IsTabStop="False">
 
                 <GridView.ItemsPanel>
                     <ItemsPanelTemplate>
                         <ItemsWrapGrid x:Name="WrapPanel"
-                            Orientation="Horizontal"
-                            ItemHeight="132"/>
+                                       Orientation="Horizontal"
+                                       ItemHeight="132"/>
                     </ItemsPanelTemplate>
                 </GridView.ItemsPanel>
 
@@ -65,35 +74,58 @@
                 <GridView.ItemTemplate>
                     <DataTemplate x:DataType="local:AppGroupItem">
                         <Border CornerRadius="14"
-                            Padding="12"
-                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                            BorderThickness="1">
+                                Padding="12"
+                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1">
                             <Border.Shadow>
                                 <ThemeShadow/>
                             </Border.Shadow>
 
                             <Grid RowDefinitions="*,Auto" RowSpacing="10">
-                                <!-- 上：アイコン -->
                                 <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
                                     <Image Width="56"
-                                       Height="56"
-                                       Stretch="Uniform"
-                                       Source="{x:Bind Icon}" />
+                                           Height="56"
+                                           Stretch="Uniform"
+                                           Source="{x:Bind Icon}" />
                                 </Grid>
-                                <!-- 下：アプリ名 -->
+
                                 <TextBlock Grid.Row="1"
-                                   Text="{x:Bind AppName}"
-                                   FontSize="13"
-                                   HorizontalAlignment="Center"
-                                   TextAlignment="Center"
-                                   TextTrimming="CharacterEllipsis"
-                                   MaxLines="1"/>
+                                           Text="{x:Bind AppName}"
+                                           FontSize="13"
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center"
+                                           TextTrimming="CharacterEllipsis"
+                                           MaxLines="1"/>
                             </Grid>
                         </Border>
                     </DataTemplate>
                 </GridView.ItemTemplate>
             </GridView>
+
+            <!-- 下部バー（薄型） -->
+            <Border Grid.Row="2"
+                Height="40"
+                CornerRadius="10"
+                Background="Transparent"
+                BorderBrush="Transparent"
+                BorderThickness="1"
+                Padding="10,0"
+                Margin="0">
+
+                <Button Click="SettingsButton_Click"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="6,0"
+                    MinHeight="28">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="14" Opacity="0.85"/>
+                        <TextBlock Text="設定" FontSize="12" Opacity="0.9" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </Border>
         </Grid>
     </Border>
 </Window>

@@ -58,7 +58,15 @@ namespace Atsumare
             else
                 app.ExitApplication();
         }
-
+        internal static void ShowSettings()
+        {
+            if (_settingsWindow is null)
+            {
+                _settingsWindow = new SettingsWindow();
+                _settingsWindow.Closed += (_, __) => _settingsWindow = null;
+            }
+            _settingsWindow.Activate();
+        }
         private void RequestToggleOnUI()
         {
             if (_toggleBusy)
