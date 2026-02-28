@@ -56,6 +56,9 @@ public sealed partial class MainWindow : Window
 
     private SettingsWindow? _settingsWindow;
 
+    // ★追加：ウィンドウ寿命に紐づくキャンセル（起動中に閉じても落ちないようにする）
+    private readonly CancellationTokenSource _lifetimeCts = new();
+
     private void OpenSettings()
     {
         // 既に開いている場合は前面へ
@@ -119,12 +122,27 @@ public sealed partial class MainWindow : Window
         // 初期状態は全件表示
         ApplyFilter("");
 
-        // 起動時に実行中ウィンドウの一覧をロード
-        _ = DispatcherQueue.TryEnqueue(async () => await ReloadRunningWindowsAsync());
+        // 起動時に実行中ウィンドウの一覧をロード（閉じられたらキャンセル）
+        _ = DispatcherQueue.TryEnqueue(async () =>
+        {
+            try
+            {
+                await ReloadRunningWindowsAsync(_lifetimeCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // 終了中の正常系
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("ReloadRunningWindowsAsync failed: " + ex);
+            }
+        });
 
-        // Close されたら App.OpenWindows から除去（App 側で Add している前提）
+        // Close されたらキャンセルして App.OpenWindows から除去（App 側で Add している前提）
         this.Closed += (_, __) =>
         {
+            try { _lifetimeCts.Cancel(); } catch { }
             try { App.OpenWindows.Remove(this); } catch { }
         };
     }
@@ -296,6 +314,7 @@ public sealed partial class MainWindow : Window
         {
             if (App.IsAutoCloseSuppressed())
                 return;
+
             if (!IsForegroundOurProcess())
             {
                 CloseAllAtsumareWindows();
@@ -358,7 +377,8 @@ public sealed partial class MainWindow : Window
                     {
                         dq.TryEnqueue(() =>
                         {
-                            try { w.Close(); } catch (Exception ex) { Debug.WriteLine("Window.Close failed: " + ex); }
+                            try { w.Close(); }
+                            catch (Exception ex) { Debug.WriteLine("Window.Close failed: " + ex); }
                         });
                     }
                     else
@@ -533,13 +553,18 @@ public sealed partial class MainWindow : Window
     // =========================
     // Running windows list
     // =========================
-    private async Task ReloadRunningWindowsAsync()
+    private async Task ReloadRunningWindowsAsync(CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
+
         var windows = new List<(IntPtr hWnd, string title, uint pid)>();
         var exclude = BuildExcludeSet();
 
+        // 列挙（キャンセルされたら早期終了）
         EnumWindows((hWnd, lParam) =>
         {
+            if (ct.IsCancellationRequested) return false;
+
             if (!IsAltTabWindow(hWnd))
                 return true;
 
@@ -559,6 +584,9 @@ public sealed partial class MainWindow : Window
             return true;
         }, IntPtr.Zero);
 
+        ct.ThrowIfCancellationRequested();
+        if (IsClosing) return; // 念のため
+
         var fg = GetForegroundWindow();
 
         var groups = windows
@@ -576,6 +604,8 @@ public sealed partial class MainWindow : Window
 
                 foreach (var x in g)
                 {
+                    if (ct.IsCancellationRequested) break;
+
                     if (!GetWindowRect(x.hWnd, out var r))
                         continue;
 
@@ -599,11 +629,23 @@ public sealed partial class MainWindow : Window
             })
             .ToList();
 
+        ct.ThrowIfCancellationRequested();
+        if (IsClosing) return;
+
+        // ★ここから UI/バインド対象を触るので、キャンセル後は触らない
+        if (ct.IsCancellationRequested) return;
+
         AllItems.Clear();
 
         foreach (var w in groups)
         {
+            ct.ThrowIfCancellationRequested();
+            if (IsClosing) return;
+
             var icon = await GetWindowIconAsync(w.hWnd, w.pid);
+            ct.ThrowIfCancellationRequested();
+            if (IsClosing) return;
+
             var appName = GetAppDisplayName(w.pid, w.title);
 
             AllItems.Add(new AppGroupItem
@@ -619,6 +661,7 @@ public sealed partial class MainWindow : Window
 
         App.LogVerbose($"[Reload] {AllItems.Count} apps loaded (from {windows.Count} windows)");
 
+        if (ct.IsCancellationRequested || IsClosing) return;
         ApplyFilter(FilterBox.Text);
     }
 
