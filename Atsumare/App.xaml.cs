@@ -35,30 +35,11 @@ namespace Atsumare
         private static readonly object _logLock = new();
         private static long _suppressAutoCloseUntilTick;
         private static int _fatalHandling; // 再入防止
+        private bool _globalExceptionHandlersRegistered;
 
         public App()
         {
             this.InitializeComponent();
-
-            this.UnhandledException += (_, e) =>
-            {
-                CrashLog.Write(e.Exception, "XamlUnhandledException");
-                // e.Handled = true; // ←切り分け中は OFF 推奨（握りつぶすと原因が見えにくい）
-            };
-
-            AppDomain.CurrentDomain.UnhandledException += (_, e) =>
-            {
-                if (e.ExceptionObject is Exception ex)
-                    CrashLog.Write(ex, "AppDomainUnhandledException");
-                else
-                    CrashLog.Write("[AppDomainUnhandledException] " + e.ExceptionObject);
-            };
-
-            TaskScheduler.UnobservedTaskException += (_, e) =>
-            {
-                CrashLog.Write(e.Exception, "UnobservedTaskException");
-                e.SetObserved();
-            };
         }
 
         internal static void RequestToggle()
@@ -80,12 +61,14 @@ namespace Atsumare
         }
         internal static void ShowSettings()
         {
-            if (_settingsWindow is null)
-            {
-                _settingsWindow = new SettingsWindow();
-                _settingsWindow.Closed += (_, __) => _settingsWindow = null;
-            }
-            _settingsWindow.Activate();
+            if (Application.Current is not App app)
+                return;
+
+            var q = app._uiQueue;
+            if (q == null)
+                return;
+
+            _ = q.TryEnqueue(() => app.ShowSettingsOnUI());
         }
         private void RequestToggleOnUI()
         {
@@ -299,6 +282,11 @@ namespace Atsumare
         }
         private void RegisterGlobalExceptionHandlers()
         {
+            if (_globalExceptionHandlersRegistered)
+                return;
+
+            _globalExceptionHandlersRegistered = true;
+
             // UIスレッドで未処理になった例外
             this.UnhandledException += (_, e) =>
             {
@@ -376,15 +364,29 @@ namespace Atsumare
         {
             if (_single == null) return;
 
-            while (!ct.IsCancellationRequested)
+            try
             {
-                await _single.WaitForShowRequestAsync().ConfigureAwait(false);
+                while (!ct.IsCancellationRequested)
+                {
+                    await _single.WaitForShowRequestAsync().ConfigureAwait(false);
 
-                var q = _uiQueue;
-                if (q == null) continue;
+                    if (ct.IsCancellationRequested)
+                        break;
 
-                // ★二重起動時は Show（未表示なら表示、表示中なら前面化）
-                _ = q.TryEnqueue(() => ShowFromExternalOrTray());
+                    var q = _uiQueue;
+                    if (q == null) continue;
+
+                    // ★二重起動時は Show（未表示なら表示、表示中なら前面化）
+                    _ = q.TryEnqueue(() => ShowFromExternalOrTray());
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                LogLine("[SHOW] External show listener disposed during shutdown.");
+            }
+            catch (Exception ex)
+            {
+                LogException("WaitForExternalShowRequestsAsync", ex);
             }
         }
 
@@ -408,46 +410,41 @@ namespace Atsumare
 
             foreach (var mon in monitors)
             {
-                var w = new MainWindow();
-                w.InitializeForMonitor(mon);
+                MainWindow? w = null;
+                try
+                {
+                    w = new MainWindow();
+                    w.InitializeForMonitor(mon);
 
-                OpenWindows.Add(w);
+                    OpenWindows.Add(w);
 
-                // ★ちらつき対策：Activate前に Win32 で配置
-                w.PrePositionToMonitorCenter(mon, 820, 540);
+                    // ★ちらつき対策：Activate前に Win32 で配置
+                    w.PrePositionToMonitorCenter(mon, 820, 540);
 
-                w.Activate();
+                    w.Activate();
+                }
+                catch (Exception ex)
+                {
+                    LogException($"ShowPickerOnAllMonitors monitor=0x{mon.ToInt64():X}", ex);
+
+                    if (w != null)
+                    {
+                        try { OpenWindows.Remove(w); } catch { }
+                        try { w.Close(); } catch { }
+                    }
+                }
             }
         }
         public static void OpenSettingsWindow()
         {
-            // UIスレッドで必ず実行
-            var dq = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
-            if (dq == null)
-            {
-                // まれに取れない場合、MainWindowのDispatcherQueueがあるならそちらへ…なども可能
+            if (Application.Current is not App app)
                 return;
-            }
 
-            dq.TryEnqueue(() =>
-            {
-                try
-                {
-                    if (_settingsWindow != null)
-                    {
-                        _settingsWindow.Activate();
-                        return;
-                    }
+            var dq = app._uiQueue;
+            if (dq == null)
+                return;
 
-                    _settingsWindow = new SettingsWindow();
-                    _settingsWindow.Closed += (_, __) => _settingsWindow = null;
-                    _settingsWindow.Activate();
-                }
-                catch
-                {
-                    _settingsWindow = null;
-                }
-            });
+            _ = dq.TryEnqueue(() => app.ShowSettingsOnUI());
         }
         internal void ExitApplication()
         {
@@ -555,5 +552,28 @@ namespace Atsumare
             }
         }
 
+        private void ShowSettingsOnUI()
+        {
+            try
+            {
+                if (_settingsWindow != null)
+                {
+                    _settingsWindow.Activate();
+                    return;
+                }
+
+                _settingsWindow = new SettingsWindow();
+                _settingsWindow.Closed += (_, __) => _settingsWindow = null;
+                _settingsWindow.Activate();
+            }
+            catch (Exception ex)
+            {
+                LogException("ShowSettingsOnUI", ex);
+                _settingsWindow = null;
+            }
+        }
+
     }
 }
+
+
