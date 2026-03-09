@@ -172,10 +172,12 @@ public sealed partial class SettingsWindow : Window
             }
 
             SwStartMinToTray.IsOn = s.StartMinimizedToTray;
+            SwLaunchAtStartup.IsOn = StartupRegistration.IsEnabled();
             SwCloseMinToTray.IsOn = s.CloseButtonMinimizesToTray;
             SwShowOverlay.IsOn = s.ShowMoveOverlay;
             TbExcludeCsv.Text = s.ExcludeProcessNamesCsv ?? "";
             SwVerboseLog.IsOn = s.EnableVerboseLog;
+            s.LaunchAtStartup = SwLaunchAtStartup.IsOn;
             ApplyHotkeyToUI(s);
             UpdateHotkeyPreview();
         }
@@ -244,6 +246,7 @@ public sealed partial class SettingsWindow : Window
             LogHandledException("Hotkey_Changed", ex);
         }
     }
+
     private async void AnySetting_Toggled(object sender, RoutedEventArgs e)
     {
         if (_isLoading || _isClosing) return;
@@ -252,6 +255,8 @@ public sealed partial class SettingsWindow : Window
         {
             var s = SettingsStore.Current;
             s.StartMinimizedToTray = SwStartMinToTray.IsOn;
+            StartupRegistration.SetEnabled(SwLaunchAtStartup.IsOn);
+            s.LaunchAtStartup = SwLaunchAtStartup.IsOn;
             s.CloseButtonMinimizesToTray = SwCloseMinToTray.IsOn;
             s.ShowMoveOverlay = SwShowOverlay.IsOn;
             s.EnableVerboseLog = SwVerboseLog.IsOn;
