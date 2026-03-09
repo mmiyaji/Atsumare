@@ -31,7 +31,7 @@ public sealed partial class SettingsWindow : Window
     public SettingsWindow()
     {
         InitializeComponent();
-        Title = "險ｭ螳・;
+        Title = "設定";
 
         try { SystemBackdrop = new MicaBackdrop(); }
         catch { SystemBackdrop = null; }
@@ -311,17 +311,17 @@ public sealed partial class SettingsWindow : Window
         PanelExt.Visibility = tag == "ext" ? Visibility.Visible : Visibility.Collapsed;
         PanelAbout.Visibility = tag == "about" ? Visibility.Visible : Visibility.Collapsed;
 
-        PageTitle.Text = item.Content?.ToString() ?? "險ｭ螳・;
+        PageTitle.Text = item.Content?.ToString() ?? "設定";
         SettingsSearchBoxWide.Text = "";
         SettingsSearchBoxNarrow.Text = "";
         PageSubtitle.Text = tag switch
         {
-            "general" => "蝓ｺ譛ｬ蜍穂ｽ懊ｒ險ｭ螳壹＠縺ｾ縺・,
-            "move" => "遘ｻ蜍輔・謖吝虚繧定ｨｭ螳壹＠縺ｾ縺・,
-            "applist" => "荳隕ｧ陦ｨ遉ｺ縺ｮ繝輔ぅ繝ｫ繧ｿ繧定ｨｭ螳壹＠縺ｾ縺・,
-            "log" => "險ｺ譁ｭ逕ｨ縺ｮ繝ｭ繧ｰ險ｭ螳壹〒縺・,
-            "ext" => "蟆・擂縺ｮ諡｡蠑ｵ險ｭ螳壹〒縺・,
-            "about" => "繧｢繝励Μ諠・ｱ",
+            "general" => "基本設定を変更します",
+            "move" => "移動関連の動作を設定します",
+            "applist" => "一覧表示するアプリを調整します",
+            "log" => "ログと診断の設定です",
+            "ext" => "今後の拡張向け設定です",
+            "about" => "アプリ情報",
             _ => ""
         };
     }
