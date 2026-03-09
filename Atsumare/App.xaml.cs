@@ -556,6 +556,7 @@ namespace Atsumare
         {
             try
             {
+                CloseAllPickerWindows();
                 if (_settingsWindow != null)
                 {
                     _settingsWindow.Activate();
@@ -575,5 +576,6 @@ namespace Atsumare
 
     }
 }
+
 
 

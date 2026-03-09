@@ -176,6 +176,7 @@
                                 <TextBlock Text="Windows 起動時に自動起動" Style="{StaticResource CardTitleStyle}"/>
                                 <TextBlock Text="ユーザーのサインイン時に Atsumare を自動起動します。" Style="{StaticResource CardDescStyle}"/>
                                 <ToggleSwitch x:Name="SwLaunchAtStartup" Toggled="AnySetting_Toggled"/>
+                                <TextBlock x:Name="TbStartupStatus" Style="{StaticResource CardDescStyle}"/>
                             </StackPanel>
                         </Border>
 
@@ -261,3 +262,4 @@
         </NavigationView.Content>
     </NavigationView>
 </Window>
+

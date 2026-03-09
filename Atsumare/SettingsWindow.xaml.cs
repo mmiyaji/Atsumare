@@ -28,6 +28,7 @@ public sealed partial class SettingsWindow : Window
         public int Vk { get; set; }
         public override string ToString() => Label;
     }
+
     public SettingsWindow()
     {
         InitializeComponent();
@@ -171,8 +172,7 @@ public sealed partial class SettingsWindow : Window
             var startupStatus = await StartupRegistration.GetStatusAsync();
 
             SwStartMinToTray.IsOn = s.StartMinimizedToTray;
-            SwLaunchAtStartup.IsOn = startupStatus == StartupRegistrationStatus.Enabled;
-            SwLaunchAtStartup.IsEnabled = startupStatus != StartupRegistrationStatus.Unsupported;
+            UpdateStartupToggle(startupStatus);
             SwCloseMinToTray.IsOn = s.CloseButtonMinimizesToTray;
             SwShowOverlay.IsOn = s.ShowMoveOverlay;
             TbExcludeCsv.Text = s.ExcludeProcessNamesCsv ?? "";
@@ -255,15 +255,9 @@ public sealed partial class SettingsWindow : Window
             s.StartMinimizedToTray = SwStartMinToTray.IsOn;
 
             var startupStatus = await StartupRegistration.SetEnabledAsync(SwLaunchAtStartup.IsOn);
-            var startupEnabled = startupStatus == StartupRegistrationStatus.Enabled;
-            var startupSupported = startupStatus != StartupRegistrationStatus.Unsupported;
+            UpdateStartupToggle(startupStatus);
 
-            _isLoading = true;
-            SwLaunchAtStartup.IsEnabled = startupSupported;
-            SwLaunchAtStartup.IsOn = startupEnabled;
-            _isLoading = false;
-
-            s.LaunchAtStartup = startupEnabled;
+            s.LaunchAtStartup = SwLaunchAtStartup.IsOn;
             s.CloseButtonMinimizesToTray = SwCloseMinToTray.IsOn;
             s.ShowMoveOverlay = SwShowOverlay.IsOn;
             s.EnableVerboseLog = SwVerboseLog.IsOn;
@@ -402,6 +396,22 @@ public sealed partial class SettingsWindow : Window
     {
         Debug.WriteLine($"[SettingsWindow] {where}: {ex}");
         App.LogLine($"[SettingsWindow] {where}: {ex}");
+    }
+
+    private void UpdateStartupToggle(StartupRegistrationStatus status)
+    {
+        _isLoading = true;
+        SwLaunchAtStartup.IsOn = status == StartupRegistrationStatus.Enabled;
+        SwLaunchAtStartup.IsEnabled = status != StartupRegistrationStatus.Unsupported;
+        TbStartupStatus.Text = status switch
+        {
+            StartupRegistrationStatus.Enabled => "有効です。",
+            StartupRegistrationStatus.Disabled => "無効です。",
+            StartupRegistrationStatus.DisabledByUser => "Windows 側で無効化されています。スタートアップ アプリから再度有効化してください。",
+            StartupRegistrationStatus.DisabledByPolicy => "組織のポリシーで無効化されています。",
+            _ => "この配布形態では利用できないか、状態を取得できませんでした。"
+        };
+        _isLoading = false;
     }
 
     private static string NormalizeExcludeCsv(string? csv)
