@@ -221,43 +221,8 @@ public sealed partial class MainWindow : Window
     // 縲瑚ｵｷ蜍墓凾繝医Ξ繧､譛蟆丞喧縲阪ｒ蜷ｫ繧窶懊ヨ繝ｬ繧､驕狗畑繝輔Λ繧ｰ窶昴ｒ蠎・ａ縺ｫ諡ｾ縺・ｼ医・繝ｭ繝代ユ繧｣蜷阪′驕輔▲縺ｦ繧り誠縺｡縺ｪ縺・ｼ・
     private static bool ShouldCloseToTray()
     {
-        // 縺ゅ↑縺溘・ SettingsStore 縺ｮ螳溘・繝ｭ繝代ユ繧｣蜷阪↓蜷医ｏ縺帙※縲∝ｿ・ｦ√↑繧牙呵｣懊ｒ霑ｽ蜉縺励※縺上□縺輔＞
-        return GetBoolSettingAny(
-            "MinimizeToTrayOnClose",
-            "CloseToTray",
-            "TrayOnClose",
-            "MinimizeToTray",
-            "EnableTrayMode",
-            "TrayMode",
-            "StartMinimizedToTray",
-            "StartToTray",
-            "TrayMinimizeOnStartup",
-            "StartMinimizeToTray"
-        );
-    }
-
-    private static bool GetBoolSettingAny(params string[] names)
-    {
-        object? current = null;
-        try { current = SettingsStore.Current; } catch { return false; }
-        if (current == null) return false;
-
-        var t = current.GetType();
-        foreach (var name in names)
-        {
-            try
-            {
-                var p = t.GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-                if (p == null) continue;
-                if (p.PropertyType != typeof(bool)) continue;
-
-                if (p.GetValue(current) is bool b)
-                    return b;
-            }
-            catch { }
-        }
-
-        return false;
+        try { return SettingsStore.Current.CloseButtonMinimizesToTray; }
+        catch { return false; }
     }
 
     private void HideToTray()
