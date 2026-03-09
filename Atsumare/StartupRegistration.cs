@@ -1,50 +1,69 @@
-﻿using Microsoft.Win32;
-using System;
-using System.IO;
+﻿using System;
+using System.Threading.Tasks;
+using Windows.ApplicationModel;
 
 namespace Atsumare;
 
+internal enum StartupRegistrationStatus
+{
+    Unsupported,
+    Disabled,
+    DisabledByUser,
+    DisabledByPolicy,
+    Enabled,
+}
+
 internal static class StartupRegistration
 {
-    private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string EntryName = "Atsumare";
+    internal const string TaskId = "AtsumareStartup";
 
-    internal static bool IsEnabled()
+    internal static async Task<StartupRegistrationStatus> GetStatusAsync()
     {
         try
         {
-            using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: false);
-            var value = key?.GetValue(EntryName) as string;
-            return string.Equals(value, BuildCommand(), StringComparison.Ordinal);
+            var task = await StartupTask.GetAsync(TaskId);
+            return Map(task.State);
         }
         catch (Exception ex)
         {
-            CrashLog.Write(ex, "StartupRegistration.IsEnabled");
-            return false;
+            CrashLog.Write(ex, "StartupRegistration.GetStatusAsync");
+            return StartupRegistrationStatus.Unsupported;
         }
     }
 
-    internal static void SetEnabled(bool enabled)
+    internal static async Task<StartupRegistrationStatus> SetEnabledAsync(bool enabled)
     {
-        using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath, writable: true)
-            ?? throw new InvalidOperationException("Failed to open startup registration key.");
-
-        if (enabled)
+        try
         {
-            key.SetValue(EntryName, BuildCommand(), RegistryValueKind.String);
-            return;
+            var task = await StartupTask.GetAsync(TaskId);
+
+            if (!enabled)
+            {
+                task.Disable();
+                return Map(task.State);
+            }
+
+            var state = task.State;
+            if (state is StartupTaskState.Enabled or StartupTaskState.EnabledByPolicy)
+                return Map(state);
+
+            state = await task.RequestEnableAsync();
+            return Map(state);
         }
-
-        if (key.GetValue(EntryName) != null)
-            key.DeleteValue(EntryName, throwOnMissingValue: false);
+        catch (Exception ex)
+        {
+            CrashLog.Write(ex, "StartupRegistration.SetEnabledAsync");
+            return StartupRegistrationStatus.Unsupported;
+        }
     }
 
-    private static string BuildCommand()
+    private static StartupRegistrationStatus Map(StartupTaskState state) => state switch
     {
-        var exePath = Environment.ProcessPath;
-        if (string.IsNullOrWhiteSpace(exePath))
-            exePath = Path.Combine(AppContext.BaseDirectory, "Atsumare.exe");
-
-        return $"\"{exePath}\"";
-    }
+        StartupTaskState.Disabled => StartupRegistrationStatus.Disabled,
+        StartupTaskState.DisabledByUser => StartupRegistrationStatus.DisabledByUser,
+        StartupTaskState.DisabledByPolicy => StartupRegistrationStatus.DisabledByPolicy,
+        StartupTaskState.Enabled => StartupRegistrationStatus.Enabled,
+        StartupTaskState.EnabledByPolicy => StartupRegistrationStatus.Enabled,
+        _ => StartupRegistrationStatus.Unsupported,
+    };
 }

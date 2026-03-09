@@ -38,7 +38,6 @@ public sealed partial class SettingsWindow : Window
 
         Nav.SelectedItem = Nav.MenuItems[0];
 
-        // 繝上Φ繝峨Λ縺ｯ繝｡繧ｽ繝・ラ縺ｫ縺励※縲，losed縺ｧ隗｣髯､縺吶ｋ・亥諺蜷阪Λ繝繝縺ｮ縺ｾ縺ｾ縺縺ｨ隗｣髯､縺ｧ縺阪↑縺・ｼ・
         this.Activated += SettingsWindow_Activated;
         this.SizeChanged += SettingsWindow_SizeChanged;
         this.Closed += SettingsWindow_Closed;
@@ -50,28 +49,26 @@ public sealed partial class SettingsWindow : Window
         ApplyResponsiveLayout(this.Bounds.Width);
         _ = LoadAsync();
     }
+
     private void InitHotkeyKeyCandidates()
     {
         _hotkeyKeys.Clear();
 
-        // 繧医￥菴ｿ縺・ｂ縺ｮ
         _hotkeyKeys.Add(new HotkeyKeyItem { Label = "Space", Vk = 0x20 });
         _hotkeyKeys.Add(new HotkeyKeyItem { Label = "Enter", Vk = 0x0D });
         _hotkeyKeys.Add(new HotkeyKeyItem { Label = "Tab", Vk = 0x09 });
         _hotkeyKeys.Add(new HotkeyKeyItem { Label = "Esc", Vk = 0x1B });
 
-        // F1-F12
         for (int i = 1; i <= 12; i++)
             _hotkeyKeys.Add(new HotkeyKeyItem { Label = $"F{i}", Vk = 0x70 + (i - 1) });
 
-        // A-Z
         for (int c = 'A'; c <= 'Z'; c++)
             _hotkeyKeys.Add(new HotkeyKeyItem { Label = ((char)c).ToString(), Vk = c });
 
-        // 0-9
         for (int c = '0'; c <= '9'; c++)
             _hotkeyKeys.Add(new HotkeyKeyItem { Label = ((char)c).ToString(), Vk = c });
     }
+
     private void ApplyResponsiveLayout(double width)
     {
         var isNarrow = width < 720;
@@ -82,11 +79,11 @@ public sealed partial class SettingsWindow : Window
         SettingsSearchBoxWide.Visibility = isNarrow ? Visibility.Collapsed : Visibility.Visible;
         SettingsSearchBoxNarrow.Visibility = isNarrow ? Visibility.Visible : Visibility.Collapsed;
     }
+
     private void SettingsWindow_Closed(object sender, WindowEventArgs args)
     {
         _isClosing = true;
 
-        // 蠢ｵ縺ｮ縺溘ａ隗｣髯､・磯哩縺倬圀縺ｮ繧､繝吶Φ繝磯｣帙・縺ｧ關ｽ縺｡繧九・繧帝亟縺撰ｼ・
         this.Activated -= SettingsWindow_Activated;
         this.SizeChanged -= SettingsWindow_SizeChanged;
         this.Closed -= SettingsWindow_Closed;
@@ -103,7 +100,6 @@ public sealed partial class SettingsWindow : Window
         }
         catch
         {
-            // 髢峨§髫帙↓WinRT蛛ｴ縺御ｾ句､悶ｒ謚輔￡繧九％縺ｨ縺後≠繧九◆繧∵升繧・
         }
     }
 
@@ -124,6 +120,7 @@ public sealed partial class SettingsWindow : Window
         {
         }
     }
+
     private void SettingsSearchBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (_isClosing) return;
@@ -132,11 +129,10 @@ public sealed partial class SettingsWindow : Window
         {
             if (tb == SettingsSearchBoxWide && SettingsSearchBoxNarrow.Text != tb.Text)
                 SettingsSearchBoxNarrow.Text = tb.Text;
-
             else if (tb == SettingsSearchBoxNarrow && SettingsSearchBoxWide.Text != tb.Text)
                 SettingsSearchBoxWide.Text = tb.Text;
         }
-        // 縺ｩ縺｡繧峨′ sender 縺ｧ繧ょ酔縺俶､懃ｴ｢隱槭ｒ菴ｿ縺・
+
         var q = (SettingsSearchBoxWide.Text ?? "").Trim().ToLowerInvariant();
 
         var panel =
@@ -157,6 +153,7 @@ public sealed partial class SettingsWindow : Window
                 : Visibility.Collapsed;
         }
     }
+
     private async Task LoadAsync()
     {
         _isLoading = true;
@@ -171,8 +168,11 @@ public sealed partial class SettingsWindow : Window
                 await SettingsStore.SaveAsync();
             }
 
+            var startupStatus = await StartupRegistration.GetStatusAsync();
+
             SwStartMinToTray.IsOn = s.StartMinimizedToTray;
-            SwLaunchAtStartup.IsOn = StartupRegistration.IsEnabled();
+            SwLaunchAtStartup.IsOn = startupStatus == StartupRegistrationStatus.Enabled;
+            SwLaunchAtStartup.IsEnabled = startupStatus != StartupRegistrationStatus.Unsupported;
             SwCloseMinToTray.IsOn = s.CloseButtonMinimizesToTray;
             SwShowOverlay.IsOn = s.ShowMoveOverlay;
             TbExcludeCsv.Text = s.ExcludeProcessNamesCsv ?? "";
@@ -190,15 +190,13 @@ public sealed partial class SettingsWindow : Window
             _isLoading = false;
         }
     }
+
     private void ApplyHotkeyToUI(AtsumareSettings s)
     {
-        // MOD_* 繧・int 縺ｧ菫晄戟・・in32縺ｨ蜷後§・・
         CbModAlt.IsChecked = (s.HotkeyModifiers & 0x0001) != 0;
         CbModCtrl.IsChecked = (s.HotkeyModifiers & 0x0002) != 0;
         CbModShift.IsChecked = (s.HotkeyModifiers & 0x0004) != 0;
-        //CbModWin.IsChecked = (s.HotkeyModifiers & 0x0008) != 0;
 
-        // VK 繧帝∈謚・
         var item = _hotkeyKeys.FirstOrDefault(x => x.Vk == s.HotkeyVirtualKey);
         if (item != null)
             CbHotkeyKey.SelectedItem = item;
@@ -212,13 +210,13 @@ public sealed partial class SettingsWindow : Window
         if (CbModCtrl.IsChecked == true) parts.Add("Ctrl");
         if (CbModAlt.IsChecked == true) parts.Add("Alt");
         if (CbModShift.IsChecked == true) parts.Add("Shift");
-        //if (CbModWin.IsChecked == true) parts.Add("Win");
 
         var key = (CbHotkeyKey.SelectedItem as HotkeyKeyItem)?.Label ?? "";
         if (!string.IsNullOrEmpty(key)) parts.Add(key);
 
         TbHotkeyPreview.Text = parts.Count > 0 ? string.Join(" + ", parts) : "";
     }
+
     private async void Hotkey_Changed(object sender, object e)
     {
         if (_isLoading || _isClosing) return;
@@ -255,8 +253,17 @@ public sealed partial class SettingsWindow : Window
         {
             var s = SettingsStore.Current;
             s.StartMinimizedToTray = SwStartMinToTray.IsOn;
-            StartupRegistration.SetEnabled(SwLaunchAtStartup.IsOn);
-            s.LaunchAtStartup = SwLaunchAtStartup.IsOn;
+
+            var startupStatus = await StartupRegistration.SetEnabledAsync(SwLaunchAtStartup.IsOn);
+            var startupEnabled = startupStatus == StartupRegistrationStatus.Enabled;
+            var startupSupported = startupStatus != StartupRegistrationStatus.Unsupported;
+
+            _isLoading = true;
+            SwLaunchAtStartup.IsEnabled = startupSupported;
+            SwLaunchAtStartup.IsOn = startupEnabled;
+            _isLoading = false;
+
+            s.LaunchAtStartup = startupEnabled;
             s.CloseButtonMinimizesToTray = SwCloseMinToTray.IsOn;
             s.ShowMoveOverlay = SwShowOverlay.IsOn;
             s.EnableVerboseLog = SwVerboseLog.IsOn;
@@ -266,6 +273,11 @@ public sealed partial class SettingsWindow : Window
         catch (Exception ex)
         {
             LogHandledException("AnySetting_Toggled", ex);
+        }
+        finally
+        {
+            if (!_isClosing)
+                _isLoading = false;
         }
     }
 
@@ -383,9 +395,9 @@ public sealed partial class SettingsWindow : Window
         }
         catch
         {
-            // 縺薙％縺瑚誠縺｡繧・☆縺・・縺ｧ謠｡繧・
         }
     }
+
     private void LogHandledException(string where, Exception ex)
     {
         Debug.WriteLine($"[SettingsWindow] {where}: {ex}");
@@ -409,7 +421,6 @@ public sealed partial class SettingsWindow : Window
         var normalized = NormalizeExcludeCsv(csv);
         if (!string.IsNullOrWhiteSpace(normalized)) return normalized;
 
-        // Atsumare.exe -> "Atsumare"
         return Process.GetCurrentProcess().ProcessName;
     }
 
@@ -417,7 +428,6 @@ public sealed partial class SettingsWindow : Window
     {
         try
         {
-            // 繝代ャ繧ｱ繝ｼ繧ｸ縺ｪ繧・Package.Current 縺悟叙蠕励〒縺阪ｋ
             _ = Windows.ApplicationModel.Package.Current;
             return true;
         }
@@ -431,11 +441,9 @@ public sealed partial class SettingsWindow : Window
     {
         if (IsPackaged())
         {
-            // MSIX: LocalState 驟堺ｸ具ｼ・ackages\<PFN>\LocalState・・
             return System.IO.Path.Combine(ApplicationData.Current.LocalFolder.Path, "logs");
         }
 
-        // 髱朞SIX: 蠕捺擂騾壹ｊ
         return System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Atsumare", "logs");
@@ -470,4 +478,3 @@ public sealed partial class SettingsWindow : Window
         }
     }
 }
-
