@@ -393,7 +393,7 @@ public sealed partial class MainWindow : Window
     }
 
     // GridView click: 縺薙・繧｢繝励Μ(PID)縺ｮ蜈ｨ繧ｦ繧｣繝ｳ繝峨え繧呈欠螳壹Δ繝九ち繝ｼ縺ｸ蟇・○縺ｦ縲、tsumare 繧帝哩縺倥ｋ
-    private void GridView_ItemClick(object sender, ItemClickEventArgs e)
+    private async void GridView_ItemClick(object sender, ItemClickEventArgs e)
     {
         if (e.ClickedItem is not AppGroupItem item) return;
 
@@ -404,9 +404,9 @@ public sealed partial class MainWindow : Window
                 ? _targetMonitorForThisWindow
                 : MonitorFromWindow(myHwnd, MONITOR_DEFAULTTONEAREST);
 
-            MoveAllWindowsOfProcessToMonitor(item.Pid, targetMon);
-
-            DispatcherQueue.TryEnqueue(CloseAllAtsumareWindows);
+            var showOverlay = SettingsStore.Current.ShowMoveOverlay;
+            if (showOverlay) { MoveOverlayText.Text = "Moving..."; MoveOverlayRing.IsActive = true; MoveOverlay.Visibility = Visibility.Visible; await Task.Yield(); }
+            MoveAllWindowsOfProcessToMonitor(item.Pid, targetMon); if (showOverlay) { MoveOverlayText.Text = "Moved"; MoveOverlayRing.IsActive = false; await Task.Delay(180); MoveOverlay.Visibility = Visibility.Collapsed; } DispatcherQueue.TryEnqueue(CloseAllAtsumareWindows);
         }
         catch (Exception ex)
         {

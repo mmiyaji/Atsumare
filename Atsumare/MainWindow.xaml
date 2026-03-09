@@ -1,4 +1,4 @@
-<Window
+﻿<Window
     x:Class="Atsumare.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -9,14 +9,12 @@
             Padding="16,16,16,0"
             Background="Transparent">
 
-        <!-- ★ 3行：検索 / GridView / バー -->
         <Grid RowDefinitions="Auto,*,Auto"
-            Padding="16,18,16,0">
+              Padding="16,18,16,0">
 
-            <!-- 検索 -->
             <Grid Grid.Row="0">
                 <TextBox x:Name="FilterBox"
-                         PlaceholderText="アプリ検索..."
+                         PlaceholderText="アプリを検索..."
                          FontSize="16"
                          Height="44"
                          CornerRadius="12"
@@ -40,7 +38,6 @@
                 </Button>
             </Grid>
 
-            <!-- 一覧 -->
             <GridView x:Name="AppsGrid"
                       Grid.Row="1"
                       HorizontalAlignment="Stretch"
@@ -103,29 +100,54 @@
                 </GridView.ItemTemplate>
             </GridView>
 
-            <!-- 下部バー（薄型） -->
             <Border Grid.Row="2"
-                Height="40"
-                CornerRadius="10"
-                Background="Transparent"
-                BorderBrush="Transparent"
-                BorderThickness="1"
-                Padding="10,0"
-                Margin="0">
+                    Height="40"
+                    CornerRadius="10"
+                    Background="Transparent"
+                    BorderBrush="Transparent"
+                    BorderThickness="1"
+                    Padding="10,0"
+                    Margin="0">
 
                 <Button Click="SettingsButton_Click"
-                    HorizontalAlignment="Left"
-                    VerticalAlignment="Center"
-                    Background="Transparent"
-                    BorderThickness="0"
-                    Padding="6,0"
-                    MinHeight="28">
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Padding="6,0"
+                        MinHeight="28">
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <FontIcon Glyph="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="14" Opacity="0.85"/>
                         <TextBlock Text="設定" FontSize="12" Opacity="0.9" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
             </Border>
+
+            <Grid x:Name="MoveOverlay"
+                  Grid.RowSpan="3"
+                  Background="#88000000"
+                  Visibility="Collapsed"
+                  IsHitTestVisible="False">
+                <Border HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Padding="24,18"
+                        CornerRadius="16"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1">
+                    <StackPanel Spacing="8">
+                        <ProgressRing x:Name="MoveOverlayRing"
+                                      Width="28"
+                                      Height="28"
+                                      IsActive="False"
+                                      HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="MoveOverlayText"
+                                   Text="移動中..."
+                                   FontSize="16"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
         </Grid>
     </Border>
 </Window>
