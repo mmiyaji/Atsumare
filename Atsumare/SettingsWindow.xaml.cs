@@ -1,4 +1,4 @@
-using Microsoft.UI;
+﻿using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -31,14 +31,14 @@ public sealed partial class SettingsWindow : Window
     public SettingsWindow()
     {
         InitializeComponent();
-        Title = "設定";
+        Title = "險ｭ螳・;
 
         try { SystemBackdrop = new MicaBackdrop(); }
         catch { SystemBackdrop = null; }
 
         Nav.SelectedItem = Nav.MenuItems[0];
 
-        // ハンドラはメソッドにして、Closedで解除する（匿名ラムダのままだと解除できない）
+        // 繝上Φ繝峨Λ縺ｯ繝｡繧ｽ繝・ラ縺ｫ縺励※縲，losed縺ｧ隗｣髯､縺吶ｋ・亥諺蜷阪Λ繝繝縺ｮ縺ｾ縺ｾ縺縺ｨ隗｣髯､縺ｧ縺阪↑縺・ｼ・
         this.Activated += SettingsWindow_Activated;
         this.SizeChanged += SettingsWindow_SizeChanged;
         this.Closed += SettingsWindow_Closed;
@@ -54,7 +54,7 @@ public sealed partial class SettingsWindow : Window
     {
         _hotkeyKeys.Clear();
 
-        // よく使うもの
+        // 繧医￥菴ｿ縺・ｂ縺ｮ
         _hotkeyKeys.Add(new HotkeyKeyItem { Label = "Space", Vk = 0x20 });
         _hotkeyKeys.Add(new HotkeyKeyItem { Label = "Enter", Vk = 0x0D });
         _hotkeyKeys.Add(new HotkeyKeyItem { Label = "Tab", Vk = 0x09 });
@@ -86,7 +86,7 @@ public sealed partial class SettingsWindow : Window
     {
         _isClosing = true;
 
-        // 念のため解除（閉じ際のイベント飛びで落ちるのを防ぐ）
+        // 蠢ｵ縺ｮ縺溘ａ隗｣髯､・磯哩縺倬圀縺ｮ繧､繝吶Φ繝磯｣帙・縺ｧ關ｽ縺｡繧九・繧帝亟縺撰ｼ・
         this.Activated -= SettingsWindow_Activated;
         this.SizeChanged -= SettingsWindow_SizeChanged;
         this.Closed -= SettingsWindow_Closed;
@@ -103,7 +103,7 @@ public sealed partial class SettingsWindow : Window
         }
         catch
         {
-            // 閉じ際にWinRT側が例外を投げることがあるため握る
+            // 髢峨§髫帙↓WinRT蛛ｴ縺御ｾ句､悶ｒ謚輔￡繧九％縺ｨ縺後≠繧九◆繧∵升繧・
         }
     }
 
@@ -136,7 +136,7 @@ public sealed partial class SettingsWindow : Window
             else if (tb == SettingsSearchBoxNarrow && SettingsSearchBoxWide.Text != tb.Text)
                 SettingsSearchBoxWide.Text = tb.Text;
         }
-        // どちらが sender でも同じ検索語を使う
+        // 縺ｩ縺｡繧峨′ sender 縺ｧ繧ょ酔縺俶､懃ｴ｢隱槭ｒ菴ｿ縺・
         var q = (SettingsSearchBoxWide.Text ?? "").Trim().ToLowerInvariant();
 
         var panel =
@@ -179,6 +179,10 @@ public sealed partial class SettingsWindow : Window
             ApplyHotkeyToUI(s);
             UpdateHotkeyPreview();
         }
+        catch (Exception ex)
+        {
+            LogHandledException("LoadAsync", ex);
+        }
         finally
         {
             _isLoading = false;
@@ -186,13 +190,13 @@ public sealed partial class SettingsWindow : Window
     }
     private void ApplyHotkeyToUI(AtsumareSettings s)
     {
-        // MOD_* を int で保持（Win32と同じ）
+        // MOD_* 繧・int 縺ｧ菫晄戟・・in32縺ｨ蜷後§・・
         CbModAlt.IsChecked = (s.HotkeyModifiers & 0x0001) != 0;
         CbModCtrl.IsChecked = (s.HotkeyModifiers & 0x0002) != 0;
         CbModShift.IsChecked = (s.HotkeyModifiers & 0x0004) != 0;
         //CbModWin.IsChecked = (s.HotkeyModifiers & 0x0008) != 0;
 
-        // VK を選択
+        // VK 繧帝∈謚・
         var item = _hotkeyKeys.FirstOrDefault(x => x.Vk == s.HotkeyVirtualKey);
         if (item != null)
             CbHotkeyKey.SelectedItem = item;
@@ -217,58 +221,80 @@ public sealed partial class SettingsWindow : Window
     {
         if (_isLoading || _isClosing) return;
 
-        var mods = 0;
-        if (CbModAlt.IsChecked == true) mods |= 0x0001;
-        if (CbModCtrl.IsChecked == true) mods |= 0x0002;
-        if (CbModShift.IsChecked == true) mods |= 0x0004;
-        //if (CbModWin.IsChecked == true) mods |= 0x0008;
+        try
+        {
+            var mods = 0;
+            if (CbModAlt.IsChecked == true) mods |= 0x0001;
+            if (CbModCtrl.IsChecked == true) mods |= 0x0002;
+            if (CbModShift.IsChecked == true) mods |= 0x0004;
 
-        var vk = (CbHotkeyKey.SelectedItem as HotkeyKeyItem)?.Vk ?? 0x20;
+            var vk = (CbHotkeyKey.SelectedItem as HotkeyKeyItem)?.Vk ?? 0x20;
 
-        // 修飾キーなしは事故りやすいので強制で Ctrl+Alt に戻す（好みで変更可）
-        if (mods == 0) mods = 0x0002 | 0x0001;
+            if (mods == 0) mods = 0x0002 | 0x0001;
 
-        var s = SettingsStore.Current;
-        s.HotkeyModifiers = mods;
-        s.HotkeyVirtualKey = vk;
+            var s = SettingsStore.Current;
+            s.HotkeyModifiers = mods;
+            s.HotkeyVirtualKey = vk;
 
-        UpdateHotkeyPreview();
-        await SettingsStore.SaveAsync();
+            UpdateHotkeyPreview();
+            await SettingsStore.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            LogHandledException("Hotkey_Changed", ex);
+        }
     }
     private async void AnySetting_Toggled(object sender, RoutedEventArgs e)
     {
         if (_isLoading || _isClosing) return;
 
-        var s = SettingsStore.Current;
-        s.StartMinimizedToTray = SwStartMinToTray.IsOn;
-        s.CloseButtonMinimizesToTray = SwCloseMinToTray.IsOn;
-        s.ShowMoveOverlay = SwShowOverlay.IsOn;
-        s.EnableVerboseLog = SwVerboseLog.IsOn;
+        try
+        {
+            var s = SettingsStore.Current;
+            s.StartMinimizedToTray = SwStartMinToTray.IsOn;
+            s.CloseButtonMinimizesToTray = SwCloseMinToTray.IsOn;
+            s.ShowMoveOverlay = SwShowOverlay.IsOn;
+            s.EnableVerboseLog = SwVerboseLog.IsOn;
 
-        await SettingsStore.SaveAsync();
+            await SettingsStore.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            LogHandledException("AnySetting_Toggled", ex);
+        }
     }
 
     private async void AnySetting_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (_isLoading || _isClosing) return;
 
-        var normalized = NormalizeExcludeCsv(TbExcludeCsv.Text);
-
-        // 空になったら安全側で自分自身を戻す（任意。不要なら削除OK）
-        if (string.IsNullOrWhiteSpace(normalized))
-            normalized = Process.GetCurrentProcess().ProcessName;
-
-        // TextBox へ戻す（カーソルが飛ぶのが嫌ならこのブロックは省略OK）
-        if (TbExcludeCsv.Text != normalized)
+        try
         {
-            _isLoading = true;
-            TbExcludeCsv.Text = normalized;
-            TbExcludeCsv.SelectionStart = TbExcludeCsv.Text.Length;
-            _isLoading = false;
-        }
+            var normalized = NormalizeExcludeCsv(TbExcludeCsv.Text);
 
-        SettingsStore.Current.ExcludeProcessNamesCsv = normalized;
-        await SettingsStore.SaveAsync();
+            if (string.IsNullOrWhiteSpace(normalized))
+                normalized = Process.GetCurrentProcess().ProcessName;
+
+            if (TbExcludeCsv.Text != normalized)
+            {
+                _isLoading = true;
+                TbExcludeCsv.Text = normalized;
+                TbExcludeCsv.SelectionStart = TbExcludeCsv.Text.Length;
+                _isLoading = false;
+            }
+
+            SettingsStore.Current.ExcludeProcessNamesCsv = normalized;
+            await SettingsStore.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            LogHandledException("AnySetting_TextChanged", ex);
+        }
+        finally
+        {
+            if (!_isClosing)
+                _isLoading = false;
+        }
     }
 
     private void Nav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -285,17 +311,17 @@ public sealed partial class SettingsWindow : Window
         PanelExt.Visibility = tag == "ext" ? Visibility.Visible : Visibility.Collapsed;
         PanelAbout.Visibility = tag == "about" ? Visibility.Visible : Visibility.Collapsed;
 
-        PageTitle.Text = item.Content?.ToString() ?? "設定";
+        PageTitle.Text = item.Content?.ToString() ?? "險ｭ螳・;
         SettingsSearchBoxWide.Text = "";
         SettingsSearchBoxNarrow.Text = "";
         PageSubtitle.Text = tag switch
         {
-            "general" => "基本動作を設定します",
-            "move" => "移動の挙動を設定します",
-            "applist" => "一覧表示のフィルタを設定します",
-            "log" => "診断用のログ設定です",
-            "ext" => "将来の拡張設定です",
-            "about" => "アプリ情報",
+            "general" => "蝓ｺ譛ｬ蜍穂ｽ懊ｒ險ｭ螳壹＠縺ｾ縺・,
+            "move" => "遘ｻ蜍輔・謖吝虚繧定ｨｭ螳壹＠縺ｾ縺・,
+            "applist" => "荳隕ｧ陦ｨ遉ｺ縺ｮ繝輔ぅ繝ｫ繧ｿ繧定ｨｭ螳壹＠縺ｾ縺・,
+            "log" => "險ｺ譁ｭ逕ｨ縺ｮ繝ｭ繧ｰ險ｭ螳壹〒縺・,
+            "ext" => "蟆・擂縺ｮ諡｡蠑ｵ險ｭ螳壹〒縺・,
+            "about" => "繧｢繝励Μ諠・ｱ",
             _ => ""
         };
     }
@@ -352,9 +378,15 @@ public sealed partial class SettingsWindow : Window
         }
         catch
         {
-            // ここが落ちやすいので握る
+            // 縺薙％縺瑚誠縺｡繧・☆縺・・縺ｧ謠｡繧・
         }
     }
+    private void LogHandledException(string where, Exception ex)
+    {
+        Debug.WriteLine($"[SettingsWindow] {where}: {ex}");
+        App.LogLine($"[SettingsWindow] {where}: {ex}");
+    }
+
     private static string NormalizeExcludeCsv(string? csv)
     {
         var parts = (csv ?? "")
@@ -380,7 +412,7 @@ public sealed partial class SettingsWindow : Window
     {
         try
         {
-            // パッケージなら Package.Current が取得できる
+            // 繝代ャ繧ｱ繝ｼ繧ｸ縺ｪ繧・Package.Current 縺悟叙蠕励〒縺阪ｋ
             _ = Windows.ApplicationModel.Package.Current;
             return true;
         }
@@ -394,11 +426,11 @@ public sealed partial class SettingsWindow : Window
     {
         if (IsPackaged())
         {
-            // MSIX: LocalState 配下（Packages\<PFN>\LocalState）
+            // MSIX: LocalState 驟堺ｸ具ｼ・ackages\<PFN>\LocalState・・
             return System.IO.Path.Combine(ApplicationData.Current.LocalFolder.Path, "logs");
         }
 
-        // 非MSIX: 従来通り
+        // 髱朞SIX: 蠕捺擂騾壹ｊ
         return System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Atsumare", "logs");
@@ -406,27 +438,31 @@ public sealed partial class SettingsWindow : Window
 
     private async void OpenLogFolder_Click(object sender, RoutedEventArgs e)
     {
-        var logDir = GetLogDir();
-        System.IO.Directory.CreateDirectory(logDir);
-
-        // なるべく StorageFolder 経由で開く（パッケージ環境で安定）
         try
         {
-            var folder = await StorageFolder.GetFolderFromPathAsync(logDir);
-            var ok = await Launcher.LaunchFolderAsync(folder);
-            if (ok) return;
-        }
-        catch
-        {
-            // フォールバックへ
-        }
+            var logDir = GetLogDir();
+            System.IO.Directory.CreateDirectory(logDir);
 
-        // 最後の手段：パス指定（成功/失敗を確認）
-        var ok2 = await Launcher.LaunchFolderPathAsync(logDir);
-        if (!ok2)
+            try
+            {
+                var folder = await StorageFolder.GetFolderFromPathAsync(logDir);
+                var ok = await Launcher.LaunchFolderAsync(folder);
+                if (ok) return;
+            }
+            catch
+            {
+            }
+
+            var ok2 = await Launcher.LaunchFolderPathAsync(logDir);
+            if (!ok2)
+            {
+                Debug.WriteLine($"Failed to open log folder: {logDir}");
+            }
+        }
+        catch (Exception ex)
         {
-            // ここはお好みで ContentDialog 等に差し替え
-            Debug.WriteLine($"Failed to open log folder: {logDir}");
+            LogHandledException("OpenLogFolder_Click", ex);
         }
     }
 }
+

@@ -44,8 +44,9 @@ public static class SettingsStore
             Current = loaded ?? new AtsumareSettings();
             return Current;
         }
-        catch
+        catch (Exception ex)
         {
+            CrashLog.Write(ex, "SettingsStore.LoadAsync");
             Current = new AtsumareSettings();
             return Current;
         }
@@ -66,6 +67,11 @@ public static class SettingsStore
                 SettingsJsonContext.Default.AtsumareSettings);
 
             await File.WriteAllTextAsync(path, json);
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write(ex, "SettingsStore.SaveAsync");
+            throw;
         }
         finally
         {
