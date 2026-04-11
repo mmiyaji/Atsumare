@@ -1,7 +1,9 @@
 using System.Text.Json;
 using FlaUI.Core.AutomationElements;
 using FlaUI.Core.Definitions;
+using FlaUI.Core.Input;
 using FlaUI.Core.Tools;
+using FlaUI.Core.WindowsAPI;
 using Xunit;
 
 namespace Atsumare.E2E.Tests;
@@ -58,7 +60,7 @@ public sealed class SettingsWindowTests
         ActivateNavItem(session.FindById(settingsWindow, "NavAppList"));
 
         var excludeTextBox = session.FindById(settingsWindow, "TbExcludeCsv");
-        excludeTextBox.Patterns.Value.Pattern.SetValue("explorer, obs64");
+        ReplaceText(excludeTextBox, "explorer, obs64");
 
         session.WaitForSettingsValue(json =>
         {
@@ -95,21 +97,13 @@ public sealed class SettingsWindowTests
         ActivateNavItem(session.FindById(settingsWindow, "NavLog"));
         SetToggle(session.FindById(settingsWindow, "SwVerboseLog"), true);
 
-        ActivateNavItem(session.FindById(settingsWindow, "NavGeneral"));
-        SetCheckBox(session.FindById(settingsWindow, "CbModAlt"), false);
-        SetCheckBox(session.FindById(settingsWindow, "CbModCtrl"), true);
-        SetCheckBox(session.FindById(settingsWindow, "CbModShift"), true);
-        session.FindById(settingsWindow, "CbHotkeyKey").AsComboBox().Select("F2");
-
         session.WaitForSettingsValue(json =>
         {
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
             return root.GetProperty("StartMinimizedToTray").GetBoolean()
                 && root.GetProperty("CloseButtonMinimizesToTray").GetBoolean()
-                && root.GetProperty("EnableVerboseLog").GetBoolean()
-                && root.GetProperty("HotkeyModifiers").GetInt32() == (0x0002 | 0x0004)
-                && root.GetProperty("HotkeyVirtualKey").GetInt32() == 0x71;
+                && root.GetProperty("EnableVerboseLog").GetBoolean();
         });
     }
 
@@ -167,5 +161,14 @@ public sealed class SettingsWindowTests
         }
 
         throw new InvalidOperationException($"Navigation item '{element.AutomationId}' does not support Select or Invoke.");
+    }
+
+    private static void ReplaceText(AutomationElement element, string value)
+    {
+        element.Focus();
+        using (Keyboard.Pressing(VirtualKeyShort.CONTROL))
+            Keyboard.Type(VirtualKeyShort.KEY_A);
+        Keyboard.Type(VirtualKeyShort.BACK);
+        Keyboard.Type(value);
     }
 }

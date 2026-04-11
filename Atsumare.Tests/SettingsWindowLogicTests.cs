@@ -54,4 +54,25 @@ public sealed class SettingsWindowLogicTests
         Assert.False(ok);
         Assert.Equal("SettingsWindowLogic.RequireModifier", message);
     }
+
+    [Fact]
+    public void AddCsvValue_AppendsOnlyWhenMissing()
+    {
+        var actual = SettingsWindowLogic.AddCsvValue("explorer, slack", "obs64");
+        Assert.Equal("explorer, slack, obs64", actual);
+    }
+
+    [Fact]
+    public void RemoveCsvValue_RemovesMatchingEntry()
+    {
+        var actual = SettingsWindowLogic.RemoveCsvValue("explorer, slack, obs64", "slack");
+        Assert.Equal("explorer, obs64", actual);
+    }
+
+    [Fact]
+    public void TouchRecentKeyCsv_MovesLatestKeyToFront()
+    {
+        var actual = SettingsWindowLogic.TouchRecentKeyCsv("app:a, app:b, app:c", "app:b", maxItems: 5);
+        Assert.Equal("app:b, app:a, app:c", actual);
+    }
 }

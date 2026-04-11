@@ -206,6 +206,15 @@
                                 <TextBlock x:Name="TbExcludeProcessTitle" x:Uid="SettingsWindow.ExcludeProcessTitle" Text="Excluded process names" Style="{StaticResource CardTitleStyle}"/>
                                 <TextBlock x:Name="TbExcludeProcessDesc" x:Uid="SettingsWindow.ExcludeProcessDesc" Text="Enter process names to hide from the list, separated by commas. Example: explorer, obs64" Style="{StaticResource CardDescStyle}"/>
                                 <TextBox x:Name="TbExcludeCsv" AutomationProperties.AutomationId="TbExcludeCsv" TextChanged="AnySetting_TextChanged"/>
+                                <TextBlock x:Name="TbExcludeSuggestionTitle"
+                                           Text="Add from currently open apps"
+                                           Style="{StaticResource CardDescStyle}"/>
+                                <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                              VerticalScrollBarVisibility="Disabled">
+                                    <StackPanel x:Name="ExcludeSuggestionPanel"
+                                                Orientation="Horizontal"
+                                                Spacing="8"/>
+                                </ScrollViewer>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -223,6 +232,25 @@
                                 <TextBlock x:Name="TbLogFolderTitle" x:Uid="SettingsWindow.LogFolderTitle" Text="Open log folder" Style="{StaticResource CardTitleStyle}"/>
                                 <TextBlock x:Name="TbLogFolderDesc" x:Uid="SettingsWindow.LogFolderDesc" Text="Log files are stored under %LocalAppData%\\Atsumare\\logs." Style="{StaticResource CardDescStyle}"/>
                                 <Button x:Name="BtnOpenLogFolder" x:Uid="SettingsWindow.OpenLogFolderButton" Content="Open folder" AutomationProperties.AutomationId="OpenLogFolderButton" Click="OpenLogFolder_Click"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="diagnostics copy export zip">
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Name="TbDiagnosticsTitle" Text="Diagnostics" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbDiagnosticsDesc" Text="Copy a short diagnostic summary or export logs and settings as a zip file." Style="{StaticResource CardDescStyle}"/>
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <Button x:Name="BtnCopyDiagnostics"
+                                            Content="Copy diagnostics"
+                                            AutomationProperties.AutomationId="BtnCopyDiagnostics"
+                                            Click="BtnCopyDiagnostics_Click"/>
+                                    <Button x:Name="BtnExportDiagnostics"
+                                            Content="Export diagnostics zip"
+                                            AutomationProperties.AutomationId="BtnExportDiagnostics"
+                                            Click="BtnExportDiagnostics_Click"/>
+                                </StackPanel>
+                                <TextBlock x:Name="TbDiagnosticsStatus"
+                                           AutomationProperties.AutomationId="TbDiagnosticsStatus"
+                                           Style="{StaticResource CardDescStyle}"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

@@ -109,4 +109,20 @@
   <data name="Tray.Menu.Show" xml:space="preserve"><value>表示</value></data>
   <data name="Tray.Menu.Settings" xml:space="preserve"><value>設定...</value></data>
   <data name="Tray.Menu.Exit" xml:space="preserve"><value>終了</value></data>
+  <data name="MainWindow.EmptyStateTitle.Text" xml:space="preserve"><value>一致するアプリはありません</value></data>
+  <data name="MainWindow.EmptyStateText.Text" xml:space="preserve"><value>別の検索語を試すか、設定の除外アプリを見直してください。</value></data>
+  <data name="MainWindow.OnboardingTitle.Text" xml:space="preserve"><value>Atsumare へようこそ</value></data>
+  <data name="MainWindow.OnboardingText.Text" xml:space="preserve"><value>アプリのタイルを選ぶと、そのアプリのウィンドウを現在のモニターへ移動します。Ctrl + Alt + Space でいつでもピッカーを開けます。</value></data>
+  <data name="MainWindow.OnboardingOpenSettings.Content" xml:space="preserve"><value>設定を開く</value></data>
+  <data name="MainWindow.OnboardingDismiss.Content" xml:space="preserve"><value>閉じる</value></data>
+  <data name="MainWindow.MoveFailedPermissionFormat" xml:space="preserve"><value>{0} を移動できませんでした。より高い権限で動作している可能性があります。</value></data>
+  <data name="MainWindow.MoveFailedGenericFormat" xml:space="preserve"><value>{0} を移動できませんでした。ウィンドウの状態を確認して再試行してください。</value></data>
+  <data name="MainWindow.MovePartialPermissionFormat" xml:space="preserve"><value>{0} の一部ウィンドウは権限のため移動できませんでした。</value></data>
+  <data name="SettingsWindow.ExcludeSuggestionTitle.Text" xml:space="preserve"><value>現在開いているアプリから追加</value></data>
+  <data name="SettingsWindow.DiagnosticsTitle.Text" xml:space="preserve"><value>診断情報</value></data>
+  <data name="SettingsWindow.DiagnosticsDesc.Text" xml:space="preserve"><value>短い診断サマリーをコピーするか、ログと設定を zip で書き出します。</value></data>
+  <data name="SettingsWindow.CopyDiagnosticsButton.Content" xml:space="preserve"><value>診断情報をコピー</value></data>
+  <data name="SettingsWindow.ExportDiagnosticsButton.Content" xml:space="preserve"><value>診断 zip を出力</value></data>
+  <data name="SettingsWindow.DiagnosticsCopied" xml:space="preserve"><value>診断サマリーをクリップボードにコピーしました。</value></data>
+  <data name="SettingsWindow.DiagnosticsExportedFormat" xml:space="preserve"><value>診断情報を書き出しました: {0}</value></data>
 </root>

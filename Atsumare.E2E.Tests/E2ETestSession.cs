@@ -92,7 +92,17 @@ internal sealed class E2ETestSession : IDisposable
         var result = Retry.WhileNull(
             () =>
             {
-                foreach (var element in Automation.GetDesktop().FindAllChildren())
+                AutomationElement[] desktopChildren;
+                try
+                {
+                    desktopChildren = Automation.GetDesktop().FindAllChildren();
+                }
+                catch
+                {
+                    return null;
+                }
+
+                foreach (var element in desktopChildren)
                 {
                     try
                     {

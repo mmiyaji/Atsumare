@@ -23,28 +23,52 @@ internal static class SettingsWindowLogic
 
     internal static string NormalizeExcludeCsv(string? csv)
     {
-        var parts = (csv ?? "")
-            .Split(new[] { ',', '\n', '\r', ';' }, StringSplitOptions.RemoveEmptyEntries)
-            .Select(x => x.Trim())
-            .Where(x => x.Length > 0)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        return string.Join(", ", parts);
+        return NormalizeCsv(csv);
     }
 
     internal static string EnsureSelfInExcludeCsv(string? csv, string selfProcessName)
     {
-        var parts = (csv ?? "")
-            .Split(new[] { ',', '\n', '\r', ';' }, StringSplitOptions.RemoveEmptyEntries)
-            .Select(x => x.Trim())
-            .Where(x => x.Length > 0)
-            .ToList();
+        var parts = ParseCsv(csv);
 
         if (!parts.Contains(selfProcessName, StringComparer.OrdinalIgnoreCase))
             parts.Add(selfProcessName);
 
         return string.Join(", ", parts.Distinct(StringComparer.OrdinalIgnoreCase));
+    }
+
+    internal static List<string> ParseCsv(string? csv) =>
+        (csv ?? "")
+            .Split(new[] { ',', '\n', '\r', ';' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim())
+            .Where(x => x.Length > 0)
+            .ToList();
+
+    internal static string NormalizeCsv(string? csv) =>
+        string.Join(", ", ParseCsv(csv).Distinct(StringComparer.OrdinalIgnoreCase));
+
+    internal static string AddCsvValue(string? csv, string value)
+    {
+        var parts = ParseCsv(csv);
+        if (!parts.Contains(value, StringComparer.OrdinalIgnoreCase))
+            parts.Add(value);
+
+        return string.Join(", ", parts.Distinct(StringComparer.OrdinalIgnoreCase));
+    }
+
+    internal static string RemoveCsvValue(string? csv, string value)
+    {
+        var parts = ParseCsv(csv)
+            .Where(x => !string.Equals(x, value, StringComparison.OrdinalIgnoreCase));
+        return string.Join(", ", parts);
+    }
+
+    internal static string TouchRecentKeyCsv(string? csv, string value, int maxItems = 12)
+    {
+        var parts = ParseCsv(csv)
+            .Where(x => !string.Equals(x, value, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        parts.Insert(0, value);
+        return string.Join(", ", parts.Take(maxItems));
     }
 
     internal static int NormalizeHotkeyModifiers(int modifiers) =>

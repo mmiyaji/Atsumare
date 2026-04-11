@@ -10,6 +10,15 @@
   <data name="MainWindow.MoveOverlayText.Text" xml:space="preserve"><value>Moving...</value></data>
   <data name="MainWindow.AppVersionFormat" xml:space="preserve"><value>Atsumare v{0}</value></data>
   <data name="MainWindow.StartupSplashText.Text" xml:space="preserve"><value>Loading apps...</value></data>
+  <data name="MainWindow.EmptyStateTitle.Text" xml:space="preserve"><value>No apps matched</value></data>
+  <data name="MainWindow.EmptyStateText.Text" xml:space="preserve"><value>Try a different search, or adjust excluded apps in Settings.</value></data>
+  <data name="MainWindow.OnboardingTitle.Text" xml:space="preserve"><value>Welcome to Atsumare</value></data>
+  <data name="MainWindow.OnboardingText.Text" xml:space="preserve"><value>Choose an app tile to move that app's windows to the current monitor. Use Ctrl + Alt + Space to open the picker anytime.</value></data>
+  <data name="MainWindow.OnboardingOpenSettings.Content" xml:space="preserve"><value>Open Settings</value></data>
+  <data name="MainWindow.OnboardingDismiss.Content" xml:space="preserve"><value>Got it</value></data>
+  <data name="MainWindow.MoveFailedPermissionFormat" xml:space="preserve"><value>Could not move {0}. It may be running with higher permissions.</value></data>
+  <data name="MainWindow.MoveFailedGenericFormat" xml:space="preserve"><value>Could not move {0}. Check the app window state and try again.</value></data>
+  <data name="MainWindow.MovePartialPermissionFormat" xml:space="preserve"><value>Some {0} windows could not be moved because of permission differences.</value></data>
 
   <data name="SettingsWindow.Title" xml:space="preserve"><value>Settings</value></data>
   <data name="SettingsWindow.NavGeneral.Content" xml:space="preserve"><value>General</value></data>
@@ -44,12 +53,19 @@
 
   <data name="SettingsWindow.ExcludeProcessTitle.Text" xml:space="preserve"><value>Excluded process names</value></data>
   <data name="SettingsWindow.ExcludeProcessDesc.Text" xml:space="preserve"><value>Enter process names to hide from the list, separated by commas. Example: explorer, obs64</value></data>
+  <data name="SettingsWindow.ExcludeSuggestionTitle.Text" xml:space="preserve"><value>Add from currently open apps</value></data>
 
   <data name="SettingsWindow.VerboseLogTitle.Text" xml:space="preserve"><value>Enable verbose logs</value></data>
   <data name="SettingsWindow.VerboseLogDesc.Text" xml:space="preserve"><value>Increase diagnostic logging. This is usually not needed in normal use.</value></data>
   <data name="SettingsWindow.LogFolderTitle.Text" xml:space="preserve"><value>Open log folder</value></data>
   <data name="SettingsWindow.LogFolderDesc.Text" xml:space="preserve"><value>Log files are stored under %LocalAppData%\Atsumare\logs.</value></data>
   <data name="SettingsWindow.OpenLogFolderButton.Content" xml:space="preserve"><value>Open folder</value></data>
+  <data name="SettingsWindow.DiagnosticsTitle.Text" xml:space="preserve"><value>Diagnostics</value></data>
+  <data name="SettingsWindow.DiagnosticsDesc.Text" xml:space="preserve"><value>Copy a short diagnostic summary or export logs and settings as a zip file.</value></data>
+  <data name="SettingsWindow.CopyDiagnosticsButton.Content" xml:space="preserve"><value>Copy diagnostics</value></data>
+  <data name="SettingsWindow.ExportDiagnosticsButton.Content" xml:space="preserve"><value>Export diagnostics zip</value></data>
+  <data name="SettingsWindow.DiagnosticsCopied" xml:space="preserve"><value>Diagnostic summary copied to the clipboard.</value></data>
+  <data name="SettingsWindow.DiagnosticsExportedFormat" xml:space="preserve"><value>Diagnostics exported: {0}</value></data>
 
   <data name="SettingsWindow.ExtensionsTitle.Text" xml:space="preserve"><value>Extensions</value></data>
   <data name="SettingsWindow.ExtensionsDesc.Text" xml:space="preserve"><value>Future capabilities such as move rules or app integrations can be added here.</value></data>

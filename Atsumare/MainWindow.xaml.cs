@@ -20,6 +20,7 @@ using System.Threading.Tasks;
 using System.Xml.Linq;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Windows.UI;
 using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
 using WinRT.Interop;
@@ -75,29 +76,16 @@ public sealed partial class MainWindow : Window
         ? TimeSpan.FromMilliseconds(1500)
         : TimeSpan.FromMilliseconds(450);
 
-    private SettingsWindow? _settingsWindow;
     private readonly Stopwatch _startupSplashStopwatch = Stopwatch.StartNew();
     private bool _initialReloadStarted;
+    private int _statusMessageVersion;
 
     // 笘・ｿｽ蜉・壹え繧｣繝ｳ繝峨え蟇ｿ蜻ｽ縺ｫ邏舌▼縺上く繝｣繝ｳ繧ｻ繝ｫ・郁ｵｷ蜍穂ｸｭ縺ｫ髢峨§縺ｦ繧り誠縺｡縺ｪ縺・ｈ縺・↓縺吶ｋ・・
     private readonly CancellationTokenSource _lifetimeCts = new();
 
     private void OpenSettings()
     {
-        // 譌｢縺ｫ髢九＞縺ｦ縺・ｋ蝣ｴ蜷医・蜑埼擇縺ｸ
-        if (_settingsWindow != null)
-        {
-            try
-            {
-                _settingsWindow.Activate();
-                return;
-            }
-            catch { _settingsWindow = null; }
-        }
-
-        _settingsWindow = new SettingsWindow();
-        _settingsWindow.Closed += (_, __) => _settingsWindow = null;
-        _settingsWindow.Activate();
+        App.ShowSettings();
     }
 
     public MainWindow()
@@ -111,6 +99,12 @@ public sealed partial class MainWindow : Window
         SettingsButtonText.Text = AppStrings.Get("MainWindow.SettingsText.Text");
         MoveOverlayText.Text = AppStrings.Get("MainWindow.MoveOverlayText.Text");
         StartupSplashText.Text = AppStrings.Get("MainWindow.StartupSplashText.Text");
+        EmptyStateTitle.Text = AppStrings.Get("MainWindow.EmptyStateTitle.Text");
+        EmptyStateText.Text = AppStrings.Get("MainWindow.EmptyStateText.Text");
+        OnboardingTitle.Text = AppStrings.Get("MainWindow.OnboardingTitle.Text");
+        OnboardingText.Text = AppStrings.Get("MainWindow.OnboardingText.Text");
+        OnboardingSettingsButton.Content = AppStrings.Get("MainWindow.OnboardingOpenSettings.Content");
+        OnboardingDismissButton.Content = AppStrings.Get("MainWindow.OnboardingDismiss.Content");
         App.LogLine("[Splash] shown");
         DebugBanner.Visibility = ShowDeveloperDiagnostics ? Visibility.Visible : Visibility.Collapsed;
         DebugRibbon.Visibility = ShowDeveloperDiagnostics ? Visibility.Visible : Visibility.Collapsed;
@@ -410,11 +404,15 @@ public sealed partial class MainWindow : Window
         {
             items = AllItems.Where(x =>
                 (x.AppName ?? "").ToLowerInvariant().Contains(q) ||
-                (x.Description ?? "").ToLowerInvariant().Contains(q));
+                (x.Description ?? "").ToLowerInvariant().Contains(q) ||
+                (x.SearchText ?? "").ToLowerInvariant().Contains(q));
         }
 
         FilteredItems.Clear();
         foreach (var it in items) FilteredItems.Add(it);
+        EmptyState.Visibility = FilteredItems.Count == 0 && StartupSplash.Visibility != Visibility.Visible
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private void MainWindow_Activated(object sender, WindowActivatedEventArgs args)
@@ -462,13 +460,30 @@ public sealed partial class MainWindow : Window
                 ? _targetMonitorForThisWindow
                 : MonitorFromWindow(myHwnd, MONITOR_DEFAULTTONEAREST);
 
+            var moveResult = new MoveOperationResult();
             foreach (var pid in item.Pids.Distinct())
-                MoveAllWindowsOfProcessToMonitor(pid, targetMon);
+                MoveAllWindowsOfProcessToMonitor(pid, targetMon, moveResult);
+
+            await RememberRecentGroupAsync(item.GroupKey);
+
+            if (moveResult.MovedWindowCount == 0)
+            {
+                var message = moveResult.AccessDenied
+                    ? AppStrings.Format("MainWindow.MoveFailedPermissionFormat", item.AppName)
+                    : AppStrings.Format("MainWindow.MoveFailedGenericFormat", item.AppName);
+                ShowStatusMessage(message, isError: true);
+                return;
+            }
+
+            if (moveResult.AccessDenied)
+                ShowStatusMessage(AppStrings.Format("MainWindow.MovePartialPermissionFormat", item.AppName), isError: false);
+
             DispatcherQueue.TryEnqueue(CloseAllAtsumareWindows);
         }
         catch (Exception ex)
         {
             App.LogLine($"[MainWindow] ItemClick failed pid={item.Pid}: {ex}");
+            ShowStatusMessage(AppStrings.Format("MainWindow.MoveFailedGenericFormat", item.AppName), isError: true);
         }
     }
 
@@ -524,7 +539,7 @@ public sealed partial class MainWindow : Window
     // =========================
     // Move windows of a process to a monitor (keep maximize/snap)
     // =========================
-    private void MoveAllWindowsOfProcessToMonitor(uint pid, IntPtr targetMonitor)
+    private void MoveAllWindowsOfProcessToMonitor(uint pid, IntPtr targetMonitor, MoveOperationResult moveResult)
     {
         if (pid == 0 || targetMonitor == IntPtr.Zero) return;
 
@@ -584,10 +599,13 @@ public sealed partial class MainWindow : Window
                 {
                     int err = Marshal.GetLastWin32Error();
                     App.LogLine($"[Move] SetWindowPos FAILED err={err} hwnd=0x{hWnd.ToInt64():X}");
+                    if (err == 5)
+                        moveResult.AccessDenied = true;
                     continue;
                 }
 
                 App.LogVerbose($"[Move] hwnd=0x{hWnd.ToInt64():X} -> ({mapped.Left},{mapped.Top}) wasMax={wasMax} wasMin={wasMin}");
+                moveResult.MovedWindowCount++;
 
                 if (hasWp)
                 {
@@ -713,6 +731,7 @@ public sealed partial class MainWindow : Window
         if (ct.IsCancellationRequested || IsClosing) return;
         ApplyFilter(FilterBox.Text);
         await HideStartupSplashAsync();
+        TryShowOnboarding();
     }
 
     private async Task<AppGroupItem[]> BuildRunningWindowSnapshotAsync(CancellationToken ct)
@@ -829,6 +848,7 @@ public sealed partial class MainWindow : Window
             var appName = appNameByPid[w.pid];
             var item = new AppGroupItem
             {
+                GroupKey = BuildPreferenceKey(exePath, appName),
                 BaseAppName = appName,
                 AppName = BuildItemDisplayName(appName, w.pid, cachedIcon),
                 WindowTitle = w.title,
@@ -836,12 +856,16 @@ public sealed partial class MainWindow : Window
                 Pid = w.pid,
                 Pids = group.Members.Select(x => x.pid).Distinct().ToArray(),
                 Hwnd = w.hWnd,
-                Description = BuildItemDescription(w.pid, cachedIcon)
+                Description = BuildItemDescription(w.pid, cachedIcon),
+                SearchText = BuildSearchText(appName, cachedIcon, exePath, w.title)
             };
             if (cachedIcon.Image == null)
                 unresolvedIcons.Add((item, w.hWnd, w.pid, exePath));
             return item;
         }).ToArray();
+
+        ApplyPreferenceMetadata(items);
+        items = SortItems(items);
 
         LogPerf($"[Perf] Reload seed_items groups={groups.Count} unresolved_icons={unresolvedIcons.Count} elapsed_ms={swTotal.ElapsedMilliseconds}");
 
@@ -874,7 +898,124 @@ public sealed partial class MainWindow : Window
         AppsGrid.Opacity = 1;
         StartupSplashRing.IsActive = false;
         StartupSplash.Visibility = Visibility.Collapsed;
+        EmptyState.Visibility = FilteredItems.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         App.LogLine("[Splash] hidden");
+    }
+
+    private async Task RememberRecentGroupAsync(string groupKey)
+    {
+        if (string.IsNullOrWhiteSpace(groupKey))
+            return;
+
+        SettingsStore.Current.RecentAppKeysCsv = SettingsWindowLogic.TouchRecentKeyCsv(
+            SettingsStore.Current.RecentAppKeysCsv,
+            groupKey);
+        await SettingsStore.SaveAsync();
+    }
+
+    private async Task TogglePinAsync(string groupKey)
+    {
+        var current = SettingsStore.Current.PinnedAppKeysCsv;
+        var pinned = SettingsWindowLogic.ParseCsv(current)
+            .Contains(groupKey, StringComparer.OrdinalIgnoreCase);
+
+        SettingsStore.Current.PinnedAppKeysCsv = pinned
+            ? SettingsWindowLogic.RemoveCsvValue(current, groupKey)
+            : SettingsWindowLogic.AddCsvValue(current, groupKey);
+        await SettingsStore.SaveAsync();
+
+        ApplyPreferenceMetadata(AllItems);
+        var sorted = SortItems(AllItems);
+        AllItems.Clear();
+        foreach (var item in sorted)
+            AllItems.Add(item);
+        ApplyFilter(FilterBox.Text);
+    }
+
+    private void ShowStatusMessage(string text, bool isError)
+    {
+        var version = Interlocked.Increment(ref _statusMessageVersion);
+        StatusBannerText.Text = text;
+        StatusBannerIcon.Glyph = isError ? "\uEA39" : "\uE783";
+        StatusBanner.Background = new SolidColorBrush(isError
+            ? Color.FromArgb(220, 96, 27, 27)
+            : Color.FromArgb(220, 49, 49, 49));
+        StatusBanner.BorderBrush = new SolidColorBrush(isError
+            ? Color.FromArgb(255, 255, 171, 171)
+            : Color.FromArgb(120, 122, 122, 122));
+        StatusBanner.Visibility = Visibility.Visible;
+
+        _ = DispatcherQueue.TryEnqueue(async () =>
+        {
+            await Task.Delay(3200);
+            if (version == _statusMessageVersion)
+                StatusBanner.Visibility = Visibility.Collapsed;
+        });
+    }
+
+    private void TryShowOnboarding()
+    {
+        if (SettingsStore.Current.HasCompletedOnboarding)
+            return;
+
+        OnboardingOverlay.Visibility = Visibility.Visible;
+    }
+
+    private async void OnboardingDismissButton_Click(object sender, RoutedEventArgs e)
+    {
+        OnboardingOverlay.Visibility = Visibility.Collapsed;
+        if (SettingsStore.Current.HasCompletedOnboarding)
+            return;
+
+        SettingsStore.Current.HasCompletedOnboarding = true;
+        await SettingsStore.SaveAsync();
+    }
+
+    private async void OnboardingSettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        OnboardingOverlay.Visibility = Visibility.Collapsed;
+        if (!SettingsStore.Current.HasCompletedOnboarding)
+        {
+            SettingsStore.Current.HasCompletedOnboarding = true;
+            await SettingsStore.SaveAsync();
+        }
+
+        CloseAllAtsumareWindows();
+        App.ShowSettings();
+    }
+
+    private async void PinButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not string groupKey || string.IsNullOrWhiteSpace(groupKey))
+            return;
+
+        await TogglePinAsync(groupKey);
+        button.Opacity = ResolvePinButtonOpacity(groupKey, isHovering: true);
+    }
+
+    private void PinButton_PointerEntered(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not string groupKey)
+            return;
+
+        button.Opacity = ResolvePinButtonOpacity(groupKey, isHovering: true);
+    }
+
+    private void PinButton_PointerExited(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not string groupKey)
+            return;
+
+        button.Opacity = ResolvePinButtonOpacity(groupKey, isHovering: false);
+    }
+
+    private double ResolvePinButtonOpacity(string groupKey, bool isHovering)
+    {
+        var item = AllItems.FirstOrDefault(x => string.Equals(x.GroupKey, groupKey, StringComparison.OrdinalIgnoreCase));
+        if (item?.IsPinned == true)
+            return 0.96;
+
+        return isHovering ? 0.62 : 0.16;
     }
 
     // =========================
@@ -910,6 +1051,45 @@ public sealed partial class MainWindow : Window
             ? $"PID:{pid}"
             : "";
     }
+
+    private static string BuildSearchText(string appName, IconLoadResult iconResult, string? exePath, string windowTitle)
+    {
+        var fileName = !string.IsNullOrWhiteSpace(exePath) ? Path.GetFileNameWithoutExtension(exePath) : "";
+        return string.Join(" ", new[] { appName, fileName, exePath, windowTitle, iconResult.Source }
+            .Where(x => !string.IsNullOrWhiteSpace(x)));
+    }
+
+    private static string BuildPreferenceKey(string? exePath, string appName)
+    {
+        if (!string.IsNullOrWhiteSpace(exePath))
+            return exePath.ToLowerInvariant();
+
+        return $"app:{appName}".ToLowerInvariant();
+    }
+
+    private static void ApplyPreferenceMetadata(IEnumerable<AppGroupItem> items)
+    {
+        var pinned = SettingsWindowLogic.ParseCsv(SettingsStore.Current.PinnedAppKeysCsv)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var recent = SettingsWindowLogic.ParseCsv(SettingsStore.Current.RecentAppKeysCsv);
+        var recentOrder = recent
+            .Select((key, index) => (key, index))
+            .ToDictionary(x => x.key, x => x.index, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var item in items)
+        {
+            item.IsPinned = pinned.Contains(item.GroupKey);
+            item.RecentOrder = recentOrder.TryGetValue(item.GroupKey, out var order)
+                ? order
+                : int.MaxValue;
+        }
+    }
+
+    private static AppGroupItem[] SortItems(IEnumerable<AppGroupItem> items) =>
+        items.OrderByDescending(x => x.IsPinned)
+            .ThenBy(x => x.RecentOrder)
+            .ThenBy(x => x.AppName, StringComparer.CurrentCultureIgnoreCase)
+            .ToArray();
 
     private static string BuildWindowGroupKey(
         (IntPtr hWnd, string title, uint pid) window,
@@ -952,6 +1132,7 @@ public sealed partial class MainWindow : Window
                         entry.item.Icon = iconResult.Image;
                         entry.item.AppName = BuildItemDisplayName(entry.item.BaseAppName, entry.pid, iconResult);
                         entry.item.Description = BuildItemDescription(entry.pid, iconResult);
+                        entry.item.SearchText = BuildSearchText(entry.item.BaseAppName, iconResult, entry.exePath, entry.item.WindowTitle);
                         tcs.TrySetResult(null);
                     }
                     catch (Exception ex)
@@ -1889,6 +2070,10 @@ public sealed class AppGroupItem : INotifyPropertyChanged
     private uint _pid;
     private IReadOnlyList<uint> _pids = Array.Empty<uint>();
     private string _description = "";
+    private string _groupKey = "";
+    private string _searchText = "";
+    private bool _isPinned;
+    private int _recentOrder = int.MaxValue;
 
     public string BaseAppName
     {
@@ -1938,6 +2123,41 @@ public sealed class AppGroupItem : INotifyPropertyChanged
         set => SetProperty(ref _description, value);
     }
 
+    public string GroupKey
+    {
+        get => _groupKey;
+        set => SetProperty(ref _groupKey, value);
+    }
+
+    public string SearchText
+    {
+        get => _searchText;
+        set => SetProperty(ref _searchText, value);
+    }
+
+    public bool IsPinned
+    {
+        get => _isPinned;
+        set
+        {
+            if (SetProperty(ref _isPinned, value))
+            {
+                OnPropertyChanged(nameof(PinGlyph));
+                OnPropertyChanged(nameof(PinOpacity));
+            }
+        }
+    }
+
+    public int RecentOrder
+    {
+        get => _recentOrder;
+        set => SetProperty(ref _recentOrder, value);
+    }
+
+    public string PinGlyph => IsPinned ? "★" : "☆";
+
+    public double PinOpacity => IsPinned ? 0.96 : 0.16;
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
@@ -1955,3 +2175,9 @@ public sealed class AppGroupItem : INotifyPropertyChanged
 }
 
 internal sealed record IconLoadResult(ImageSource? Image, string Source, string? ExePath);
+
+internal sealed class MoveOperationResult
+{
+    internal int MovedWindowCount { get; set; }
+    internal bool AccessDenied { get; set; }
+}

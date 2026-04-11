@@ -6,6 +6,8 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using System;
+using System.IO;
+using System.IO.Compression;
 using System.Threading.Tasks;
 using WinRT.Interop;
 using System.Diagnostics;
@@ -13,6 +15,7 @@ using System.Linq;
 using System.Collections.ObjectModel;
 using Windows.Storage;
 using Windows.System;
+using Windows.ApplicationModel.DataTransfer;
 namespace Atsumare;
 
 public sealed partial class SettingsWindow : Window
@@ -116,6 +119,11 @@ public sealed partial class SettingsWindow : Window
         TbLogFolderTitle.Text = AppStrings.Get("SettingsWindow.LogFolderTitle.Text");
         TbLogFolderDesc.Text = AppStrings.Get("SettingsWindow.LogFolderDesc.Text");
         BtnOpenLogFolder.Content = AppStrings.Get("SettingsWindow.OpenLogFolderButton.Content");
+        TbExcludeSuggestionTitle.Text = AppStrings.Get("SettingsWindow.ExcludeSuggestionTitle.Text");
+        TbDiagnosticsTitle.Text = AppStrings.Get("SettingsWindow.DiagnosticsTitle.Text");
+        TbDiagnosticsDesc.Text = AppStrings.Get("SettingsWindow.DiagnosticsDesc.Text");
+        BtnCopyDiagnostics.Content = AppStrings.Get("SettingsWindow.CopyDiagnosticsButton.Content");
+        BtnExportDiagnostics.Content = AppStrings.Get("SettingsWindow.ExportDiagnosticsButton.Content");
         TbExtensionsTitle.Text = AppStrings.Get("SettingsWindow.ExtensionsTitle.Text");
         TbExtensionsDesc.Text = AppStrings.Get("SettingsWindow.ExtensionsDesc.Text");
         TbAboutAppDesc.Text = AppStrings.Get("SettingsWindow.AboutAppDesc.Text");
@@ -378,6 +386,7 @@ public sealed partial class SettingsWindow : Window
             s.LaunchAtStartup = SwLaunchAtStartup.IsOn;
             ApplyHotkeyToUI(s);
             UpdateHotkeyPreview();
+            RefreshExcludeSuggestions();
         }
         catch (Exception ex)
         {
@@ -650,6 +659,7 @@ public sealed partial class SettingsWindow : Window
 
             SettingsStore.Current.ExcludeProcessNamesCsv = normalized;
             await SettingsStore.SaveAsync();
+            RefreshExcludeSuggestions();
         }
         catch (Exception ex)
         {
@@ -918,6 +928,142 @@ public sealed partial class SettingsWindow : Window
         catch (Exception ex)
         {
             LogHandledException("OpenLogFolder_Click", ex);
+        }
+    }
+
+    private void RefreshExcludeSuggestions()
+    {
+        ExcludeSuggestionPanel.Children.Clear();
+
+        var existing = SettingsWindowLogic.ParseCsv(TbExcludeCsv.Text)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var suggestions = Process.GetProcesses()
+            .Where(p =>
+            {
+                try
+                {
+                    return !string.IsNullOrWhiteSpace(p.MainWindowTitle);
+                }
+                catch
+                {
+                    return false;
+                }
+            })
+            .Select(p => p.ProcessName)
+            .Where(name =>
+                !string.IsNullOrWhiteSpace(name) &&
+                !existing.Contains(name) &&
+                !string.Equals(name, Process.GetCurrentProcess().ProcessName, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
+            .Take(10)
+            .ToArray();
+
+        foreach (var name in suggestions)
+        {
+            var button = new Button
+            {
+                Content = name,
+                Tag = name,
+                Padding = new Thickness(10, 4, 10, 4)
+            };
+            button.Click += ExcludeSuggestionButton_Click;
+            ExcludeSuggestionPanel.Children.Add(button);
+        }
+    }
+
+    private async void ExcludeSuggestionButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button || button.Tag is not string processName)
+            return;
+
+        var updated = SettingsWindowLogic.AddCsvValue(TbExcludeCsv.Text, processName);
+        _isLoading = true;
+        TbExcludeCsv.Text = updated;
+        TbExcludeCsv.SelectionStart = TbExcludeCsv.Text.Length;
+        _isLoading = false;
+
+        SettingsStore.Current.ExcludeProcessNamesCsv = updated;
+        await SettingsStore.SaveAsync();
+        RefreshExcludeSuggestions();
+    }
+
+    private string BuildDiagnosticsSummary()
+    {
+        var s = SettingsStore.Current;
+        var lines = new[]
+        {
+            $"Product: {AppMetadata.ProductName}",
+            $"Version: {AppMetadata.VersionText}",
+            $"BuildDate: {AppMetadata.BuildDateText}",
+            $"Language: {AppLanguage.GetEffectiveLanguage(s)}",
+            $"StartMinimizedToTray: {s.StartMinimizedToTray}",
+            $"CloseButtonMinimizesToTray: {s.CloseButtonMinimizesToTray}",
+            $"LaunchAtStartup: {s.LaunchAtStartup}",
+            $"VerboseLog: {s.EnableVerboseLog}",
+            $"PinnedAppKeys: {s.PinnedAppKeysCsv}",
+            $"RecentAppKeys: {s.RecentAppKeysCsv}",
+            $"ExcludeProcessNames: {s.ExcludeProcessNamesCsv}",
+            $"LogDirectory: {GetLogDir()}",
+            $"SettingsPath: {SettingsStore.GetSettingsPath()}"
+        };
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private async void BtnCopyDiagnostics_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var package = new DataPackage();
+            package.SetText(BuildDiagnosticsSummary());
+            Clipboard.SetContent(package);
+            Clipboard.Flush();
+            TbDiagnosticsStatus.Text = AppStrings.Get("SettingsWindow.DiagnosticsCopied");
+        }
+        catch (Exception ex)
+        {
+            TbDiagnosticsStatus.Text = ex.Message;
+            LogHandledException("BtnCopyDiagnostics_Click", ex);
+        }
+    }
+
+    private async void BtnExportDiagnostics_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var exportRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Atsumare", "diagnostics");
+            Directory.CreateDirectory(exportRoot);
+            var tempDir = Path.Combine(exportRoot, "tmp-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+
+            var summaryPath = Path.Combine(tempDir, "diagnostics.txt");
+            await File.WriteAllTextAsync(summaryPath, BuildDiagnosticsSummary());
+
+            var settingsPath = SettingsStore.GetSettingsPath();
+            if (File.Exists(settingsPath))
+                File.Copy(settingsPath, Path.Combine(tempDir, "settings.json"), overwrite: true);
+
+            var logDir = GetLogDir();
+            if (Directory.Exists(logDir))
+            {
+                foreach (var logFile in Directory.GetFiles(logDir, "*.log").Take(5))
+                    File.Copy(logFile, Path.Combine(tempDir, Path.GetFileName(logFile)), overwrite: true);
+            }
+
+            var zipPath = Path.Combine(exportRoot, $"Atsumare-diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.zip");
+            if (File.Exists(zipPath))
+                File.Delete(zipPath);
+            ZipFile.CreateFromDirectory(tempDir, zipPath);
+            Directory.Delete(tempDir, recursive: true);
+
+            TbDiagnosticsStatus.Text = AppStrings.Format("SettingsWindow.DiagnosticsExportedFormat", zipPath);
+            await Launcher.LaunchFolderPathAsync(exportRoot);
+        }
+        catch (Exception ex)
+        {
+            TbDiagnosticsStatus.Text = ex.Message;
+            LogHandledException("BtnExportDiagnostics_Click", ex);
         }
     }
 
