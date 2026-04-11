@@ -13,6 +13,20 @@
               Padding="16,18,16,0">
 
             <Grid Grid.Row="0">
+                <Border HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Margin="0,-22,0,0"
+                        Padding="8,2"
+                        CornerRadius="8"
+                        Background="#33222222"
+                        Opacity="0.78"
+                        IsHitTestVisible="False">
+                    <TextBlock x:Name="AppVersionBadge"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Text="Atsumare"/>
+                </Border>
+
                 <TextBox x:Name="FilterBox"
                          AutomationProperties.AutomationId="FilterBox"
                          PlaceholderText="アプリを検索..."
@@ -39,14 +53,15 @@
                 </Button>
             </Grid>
 
-            <Border Grid.Row="1"
+            <Border x:Name="DebugBanner"
+                    Grid.Row="1"
                     Margin="0,10,0,4"
                     Padding="10,6"
                     CornerRadius="10"
                     Background="#3322AA66"
                     BorderBrush="#66AAFFCC"
                     BorderThickness="1"
-                    Visibility="{x:Bind DebugBannerVisibility, Mode=OneWay}">
+                    Visibility="Collapsed">
                 <TextBlock Text="DEBUG BUILD: tile text must show icon source and PID"
                            FontSize="12"
                            FontWeight="SemiBold"/>
@@ -58,7 +73,7 @@
                       HorizontalAlignment="Stretch"
                       HorizontalContentAlignment="Stretch"
                       SizeChanged="AppsGrid_SizeChanged"
-                      ItemsSource="{x:Bind FilteredItems, Mode=OneWay}"
+                      ItemsSource="{x:Bind FilteredItems}"
                       IsItemClickEnabled="True"
                       ItemClick="GridView_ItemClick"
                       SelectionMode="None"
@@ -68,14 +83,14 @@
                     <ItemsPanelTemplate>
                         <ItemsWrapGrid x:Name="WrapPanel"
                                        Orientation="Horizontal"
-                                       ItemHeight="172"/>
+                                       ItemHeight="154"/>
                     </ItemsPanelTemplate>
                 </GridView.ItemsPanel>
 
                 <GridView.ItemContainerStyle>
                     <Style TargetType="GridViewItem">
-                        <Setter Property="Height" Value="160"/>
-                        <Setter Property="Margin" Value="6"/>
+                        <Setter Property="Height" Value="144"/>
+                        <Setter Property="Margin" Value="4"/>
                         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                         <Setter Property="VerticalContentAlignment" Value="Stretch"/>
                         <Setter Property="CornerRadius" Value="14"/>
@@ -87,7 +102,7 @@
                     <DataTemplate x:DataType="local:AppGroupItem">
                         <Border CornerRadius="14"
                                 AutomationProperties.Name="{x:Bind AppName}"
-                                Padding="12"
+                                Padding="8"
                                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                 BorderThickness="1">
@@ -95,10 +110,10 @@
                                 <ThemeShadow/>
                             </Border.Shadow>
 
-                            <Grid RowDefinitions="*,Auto,Auto" RowSpacing="6">
+                            <Grid RowDefinitions="*,Auto,Auto" RowSpacing="4">
                                 <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
-                                    <Image Width="56"
-                                           Height="56"
+                                    <Image Width="50"
+                                           Height="50"
                                            Stretch="Uniform"
                                            Source="{x:Bind Icon}" />
                                 </Grid>
@@ -178,7 +193,8 @@
                 </Border>
             </Grid>
 
-            <Border Grid.RowSpan="4"
+            <Border x:Name="DebugRibbon"
+                    Grid.RowSpan="4"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Bottom"
                     Margin="0,0,12,12"
@@ -188,8 +204,9 @@
                     BorderBrush="#FFFFC857"
                     BorderThickness="1"
                     IsHitTestVisible="False"
-                    Visibility="{x:Bind DebugRibbonVisibility, Mode=OneWay}">
-                <TextBlock Text="{x:Bind DebugRibbonText, Mode=OneWay}"
+                    Visibility="Collapsed">
+                <TextBlock x:Name="DebugRibbonTextBlock"
+                           Text=""
                            FontSize="11"
                            FontWeight="SemiBold"
                            Foreground="White"

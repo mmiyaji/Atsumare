@@ -19,6 +19,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Windows.Graphics.Imaging;
+using Windows.Storage.Streams;
 using WinRT.Interop;
 
 namespace Atsumare;
@@ -36,10 +37,6 @@ public sealed partial class MainWindow : Window
     // =========================
     public ObservableCollection<AppGroupItem> AllItems { get; } = new();
     public ObservableCollection<AppGroupItem> FilteredItems { get; } = new();
-    public string DebugRibbonText { get; }
-    public Visibility DebugRibbonVisibility => ShowDeveloperDiagnostics ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility DebugBannerVisibility => ShowDeveloperDiagnostics ? Visibility.Visible : Visibility.Collapsed;
-
     private bool _focusedOnce;
     private bool _topMostOnce;
 
@@ -71,6 +68,7 @@ public sealed partial class MainWindow : Window
     private static AppGroupItem[] _latestSnapshot = Array.Empty<AppGroupItem>();
     private static long _latestSnapshotTick;
     private const int DesiredIconSize = 64;
+    private const int DisplayIconSize = 56;
 
     private SettingsWindow? _settingsWindow;
 
@@ -97,13 +95,17 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
-        DebugRibbonText = BuildDebugRibbonText();
         InitializeComponent();
+        AppVersionBadge.Text = $"Atsumare v{AppMetadata.VersionText}";
+        DebugBanner.Visibility = ShowDeveloperDiagnostics ? Visibility.Visible : Visibility.Collapsed;
+        DebugRibbon.Visibility = ShowDeveloperDiagnostics ? Visibility.Visible : Visibility.Collapsed;
+        DebugRibbonTextBlock.Text = BuildDebugRibbonText();
 
         try
         {
             ConfigureWindow();
             ConfigureTitleBarColors();
+            WindowIconHelper.Apply(this);
             SetWindowSize(820, 540);
         }
         catch (Exception ex)
@@ -1264,13 +1266,9 @@ public sealed partial class MainWindow : Window
         {
             using var stream = File.OpenRead(path);
             var randomAccessStream = stream.AsRandomAccessStream();
-            var bitmap = new BitmapImage
-            {
-                DecodePixelWidth = DesiredIconSize,
-                DecodePixelHeight = DesiredIconSize
-            };
-            await bitmap.SetSourceAsync(randomAccessStream);
-            return bitmap;
+            var decoder = await BitmapDecoder.CreateAsync(randomAccessStream);
+            var softwareBitmap = await DecodeScaledBitmapAsync(decoder, DisplayIconSize, DisplayIconSize);
+            return await CreateImageSourceAsync(softwareBitmap);
         }
         catch
         {
@@ -1321,16 +1319,57 @@ public sealed partial class MainWindow : Window
 
             var sb = new SoftwareBitmap(BitmapPixelFormat.Bgra8, width, height, BitmapAlphaMode.Premultiplied);
             sb.CopyFromBuffer(pixels.AsBuffer());
-
-            var src = new SoftwareBitmapSource();
-            await src.SetBitmapAsync(sb);
-            return src;
+            var resized = await ResizeSoftwareBitmapAsync(sb, DisplayIconSize, DisplayIconSize);
+            return await CreateImageSourceAsync(resized);
         }
         finally
         {
             if (ii.hbmColor != IntPtr.Zero) DeleteObject(ii.hbmColor);
             if (ii.hbmMask != IntPtr.Zero) DeleteObject(ii.hbmMask);
         }
+    }
+
+    private static async Task<ImageSource?> CreateImageSourceAsync(SoftwareBitmap softwareBitmap)
+    {
+        var src = new SoftwareBitmapSource();
+        await src.SetBitmapAsync(softwareBitmap);
+        return src;
+    }
+
+    private static async Task<SoftwareBitmap> ResizeSoftwareBitmapAsync(SoftwareBitmap source, int width, int height)
+    {
+        if (source.PixelWidth == width && source.PixelHeight == height)
+            return source;
+
+        using var stream = new InMemoryRandomAccessStream();
+        var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, stream);
+        encoder.SetSoftwareBitmap(source);
+        await encoder.FlushAsync();
+        stream.Seek(0);
+
+        var decoder = await BitmapDecoder.CreateAsync(stream);
+        return await DecodeScaledBitmapAsync(decoder, width, height);
+    }
+
+    private static async Task<SoftwareBitmap> DecodeScaledBitmapAsync(BitmapDecoder decoder, int width, int height)
+    {
+        var transform = new BitmapTransform
+        {
+            ScaledWidth = (uint)width,
+            ScaledHeight = (uint)height,
+            InterpolationMode = BitmapInterpolationMode.Fant
+        };
+
+        var pixelData = await decoder.GetPixelDataAsync(
+            BitmapPixelFormat.Bgra8,
+            BitmapAlphaMode.Premultiplied,
+            transform,
+            ExifOrientationMode.IgnoreExifOrientation,
+            ColorManagementMode.DoNotColorManage);
+
+        var softwareBitmap = new SoftwareBitmap(BitmapPixelFormat.Bgra8, width, height, BitmapAlphaMode.Premultiplied);
+        softwareBitmap.CopyFromBuffer(pixelData.DetachPixelData().AsBuffer());
+        return softwareBitmap;
     }
 
     // =========================

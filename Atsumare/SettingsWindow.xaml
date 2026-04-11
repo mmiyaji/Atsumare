@@ -7,15 +7,18 @@
     mc:Ignorable="d"
     Title="設定">
 
-    <NavigationView
-        x:Name="Nav"
-        AutomationProperties.AutomationId="Nav"
-        IsBackButtonVisible="Collapsed"
-        IsSettingsVisible="False"
-        PaneDisplayMode="Left"
-        SelectionChanged="Nav_SelectionChanged"
-        CompactModeThresholdWidth="760"
-        ExpandedModeThresholdWidth="980">
+    <Grid>
+        <NavigationView
+            x:Name="Nav"
+            AutomationProperties.AutomationId="Nav"
+            IsBackButtonVisible="Collapsed"
+            IsSettingsVisible="False"
+            KeyDown="HotkeyCaptureScope_KeyDown"
+            PaneDisplayMode="Left"
+            SelectionChanged="Nav_SelectionChanged"
+            CompactModeThresholdWidth="760"
+            ExpandedModeThresholdWidth="980"
+            Opacity="0">
 
         <!-- WinUI 3: Resources はここに置く -->
         <NavigationView.Resources>
@@ -85,6 +88,12 @@
                     <SymbolIcon Symbol="Help"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
+
+            <NavigationViewItem Content="ライセンス" Tag="licenses" AutomationProperties.AutomationId="NavLicenses">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Document"/>
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
         </NavigationView.MenuItems>
 
         <NavigationView.Content>
@@ -93,68 +102,10 @@
 
                     <!-- Header -->
                     <Grid Margin="0,0,0,10">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Row="0" Grid.Column="0" Spacing="2">
+                        <StackPanel Spacing="2">
                             <TextBlock x:Name="PageTitle" Text="全般" Style="{StaticResource SectionTitleStyle}"/>
                             <TextBlock x:Name="PageSubtitle" Text="基本動作を設定します" Style="{StaticResource SectionSubTitleStyle}"/>
                         </StackPanel>
-
-                        <!-- 右上に置く（ただし安全マージン付き） -->
-                        <TextBox x:Name="SettingsSearchBoxWide"
-                             AutomationProperties.AutomationId="SettingsSearchBoxWide"
-                             Grid.Row="0" Grid.Column="1"
-                             MinWidth="260"
-                             MaxWidth="420"
-                             VerticalAlignment="Top"
-                             HorizontalAlignment="Right"
-                             Margin="0,20,0,0"
-                             Padding="10,8"
-                             PlaceholderText="設定を検索"
-                             TextChanged="SettingsSearchBox_TextChanged"/>
-
-                        <!-- 狭いときはここに出す用（後述のVisualStateで切替） -->
-                        <TextBox x:Name="SettingsSearchBoxNarrow"
-                             AutomationProperties.AutomationId="SettingsSearchBoxNarrow"
-                             Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
-                             Margin="0,10,0,0"
-                             Padding="10,8"
-                             PlaceholderText="設定を検索"
-                             TextChanged="SettingsSearchBox_TextChanged"
-                             Visibility="Collapsed"/>
-                        <VisualStateManager.VisualStateGroups>
-                            <VisualStateGroup x:Name="HeaderStates">
-                                <!-- 幅が十分ある（検索は右上） -->
-                                <VisualState x:Name="Wide">
-                                    <VisualState.StateTriggers>
-                                        <AdaptiveTrigger MinWindowWidth="720"/>
-                                    </VisualState.StateTriggers>
-                                    <VisualState.Setters>
-                                        <Setter Target="SettingsSearchBoxWide.Visibility" Value="Visible"/>
-                                        <Setter Target="SettingsSearchBoxNarrow.Visibility" Value="Collapsed"/>
-                                    </VisualState.Setters>
-                                </VisualState>
-
-                                <!-- 幅が狭い（検索は下段に落とす） -->
-                                <VisualState x:Name="Narrow">
-                                    <VisualState.StateTriggers>
-                                        <AdaptiveTrigger MinWindowWidth="0"/>
-                                    </VisualState.StateTriggers>
-                                    <VisualState.Setters>
-                                        <Setter Target="SettingsSearchBoxWide.Visibility" Value="Collapsed"/>
-                                        <Setter Target="SettingsSearchBoxNarrow.Visibility" Value="Visible"/>
-                                    </VisualState.Setters>
-                                </VisualState>
-                            </VisualStateGroup>
-                        </VisualStateManager.VisualStateGroups>
                     </Grid>
 
                     <StackPanel x:Name="PanelGeneral" Spacing="12" Visibility="Visible">
@@ -198,8 +149,19 @@
                                 <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                                     <TextBlock Text="キー" VerticalAlignment="Center"/>
                                     <ComboBox x:Name="CbHotkeyKey" AutomationProperties.AutomationId="CbHotkeyKey" Width="220" SelectionChanged="Hotkey_Changed"/>
+                                    <Button x:Name="BtnCaptureHotkey"
+                                            AutomationProperties.AutomationId="BtnCaptureHotkey"
+                                            Content="ショートカットを記録"
+                                            Click="BtnCaptureHotkey_Click"/>
+                                    <Button x:Name="BtnResetHotkey"
+                                            AutomationProperties.AutomationId="BtnResetHotkey"
+                                            Content="既定に戻す"
+                                            Click="BtnResetHotkey_Click"/>
                                     <TextBlock x:Name="TbHotkeyPreview" AutomationProperties.AutomationId="TbHotkeyPreview" VerticalAlignment="Center" Opacity="0.8"/>
                                 </StackPanel>
+                                <TextBlock x:Name="TbHotkeyStatus"
+                                           AutomationProperties.AutomationId="TbHotkeyStatus"
+                                           Style="{StaticResource CardDescStyle}"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -251,10 +213,64 @@
                     </StackPanel>
 
                     <StackPanel x:Name="PanelAbout" Spacing="12" Visibility="Collapsed">
-                        <Border Style="{StaticResource CardBorderStyle}" Tag="情報 about version">
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="情報 about version author support">
                             <StackPanel Spacing="6">
                                 <TextBlock Text="Atsumare" Style="{StaticResource CardTitleStyle}"/>
                                 <TextBlock Text="ウィンドウをディスプレイへまとめて移動するツール" Style="{StaticResource CardDescStyle}"/>
+                                <TextBlock x:Name="TbAboutAuthor" AutomationProperties.AutomationId="TbAboutAuthor"/>
+                                <TextBlock x:Name="TbAboutCopyright" AutomationProperties.AutomationId="TbAboutCopyright"/>
+                                <TextBlock x:Name="TbAboutVersion" AutomationProperties.AutomationId="TbAboutVersion"/>
+                                <TextBlock x:Name="TbAboutBuildDate" AutomationProperties.AutomationId="TbAboutBuildDate"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="support github page privacy terms repository">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="サポート" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock Text="サポートページ、利用規約、プライバシーポリシー、リポジトリを開けます。" Style="{StaticResource CardDescStyle}"/>
+                                <Button x:Name="BtnSupportUrl" AutomationProperties.AutomationId="BtnSupportUrl" HorizontalAlignment="Left" Click="BtnSupportUrl_Click"/>
+                                <Button x:Name="BtnTermsUrl" AutomationProperties.AutomationId="BtnTermsUrl" HorizontalAlignment="Left" Click="BtnTermsUrl_Click"/>
+                                <Button x:Name="BtnPrivacyUrl" AutomationProperties.AutomationId="BtnPrivacyUrl" HorizontalAlignment="Left" Click="BtnPrivacyUrl_Click"/>
+                                <Button x:Name="BtnRepositoryUrl" AutomationProperties.AutomationId="BtnRepositoryUrl" HorizontalAlignment="Left" Click="BtnRepositoryUrl_Click"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="利用規約 terms legal">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="利用規約" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock Text="Atsumare は、ユーザー自身のデバイス上で現在開いているアプリのウィンドウを列挙し、別モニターへ移動するためのデスクトップユーティリティです。" TextWrapping="Wrap"/>
+                                <TextBlock Text="インストールまたは利用により、適用法令を遵守し、自己の管理下にある環境でのみ利用することに同意するものとします。" TextWrapping="Wrap"/>
+                                <TextBlock Text="本アプリは現状有姿で提供され、機能や互換性は更新により変更される場合があります。完全な条文はサポートページ上の利用規約を参照してください。" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel x:Name="PanelLicenses" Spacing="12" Visibility="Collapsed">
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="third party license windows app sdk">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Microsoft Windows App SDK / WinUI 3" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock Text="Copyright © Microsoft Corporation. All rights reserved." Style="{StaticResource CardDescStyle}"/>
+                                <TextBlock Text="This app depends on Microsoft Windows App SDK runtime and WinUI components." TextWrapping="Wrap"/>
+                                <TextBlock Text="License: Microsoft Software License Terms" TextWrapping="Wrap"/>
+                                <Button x:Name="BtnWindowsAppSdkUrl" AutomationProperties.AutomationId="BtnWindowsAppSdkUrl" HorizontalAlignment="Left" Click="BtnWindowsAppSdkUrl_Click"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="third party license dotnet runtime">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text=".NET Runtime" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock Text="Copyright © .NET Foundation and contributors." Style="{StaticResource CardDescStyle}"/>
+                                <TextBlock Text="License: MIT License" TextWrapping="Wrap"/>
+                                <Button x:Name="BtnDotNetLicenseUrl" AutomationProperties.AutomationId="BtnDotNetLicenseUrl" HorizontalAlignment="Left" Click="BtnDotNetLicenseUrl_Click"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="third party license webview2 microsoft edge">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Microsoft Edge WebView2 Runtime" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock Text="Bundled components may include Microsoft Edge WebView2 loader/runtime dependencies provided through Windows App SDK distribution." TextWrapping="Wrap"/>
+                                <TextBlock Text="License: Microsoft Software License Terms" TextWrapping="Wrap"/>
+                                <Button x:Name="BtnWebView2Url" AutomationProperties.AutomationId="BtnWebView2Url" HorizontalAlignment="Left" Click="BtnWebView2Url_Click"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -263,6 +279,37 @@
                 </StackPanel>
             </ScrollViewer>
         </NavigationView.Content>
-    </NavigationView>
+        </NavigationView>
+
+        <Border x:Name="PaneResizeHandle"
+                AutomationProperties.AutomationId="PaneResizeHandle"
+                Width="10"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Stretch"
+                Background="Transparent"
+                PointerEntered="PaneResizeHandle_PointerEntered"
+                PointerExited="PaneResizeHandle_PointerExited"
+                PointerPressed="PaneResizeHandle_PointerPressed"
+                PointerMoved="PaneResizeHandle_PointerMoved"
+                PointerReleased="PaneResizeHandle_PointerReleased"
+                PointerCanceled="PaneResizeHandle_PointerReleased"
+                Visibility="Collapsed">
+            <Grid>
+                <Border x:Name="PaneResizeHover"
+                        Width="10"
+                        IsHitTestVisible="False"
+                        HorizontalAlignment="Center"
+                        Background="#143A7AFE"
+                        CornerRadius="5"
+                        Opacity="0"/>
+                <Border x:Name="PaneResizeGrip"
+                        Width="2"
+                        IsHitTestVisible="False"
+                        HorizontalAlignment="Center"
+                        Background="#66A8B3C4"
+                        CornerRadius="1"/>
+            </Grid>
+        </Border>
+    </Grid>
 </Window>
 

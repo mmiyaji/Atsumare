@@ -5,6 +5,8 @@ VisualStudioVersion = 17.14.36930.0 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atsumare", "Atsumare\Atsumare.csproj", "{D030E9AE-ED06-40ED-A53E-F6745DDF2DC9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atsumare.Tests", "Atsumare.Tests\Atsumare.Tests.csproj", "{BE2676AC-7969-41A9-BA65-68011B0A8D36}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Atsumare.E2E.Tests", "Atsumare.E2E.Tests\Atsumare.E2E.Tests.csproj", "{77305355-F4B4-40C3-A77D-C8A7828CDDB3}"
 EndProject
 Global
@@ -35,6 +37,10 @@ Global
 		{D030E9AE-ED06-40ED-A53E-F6745DDF2DC9}.Release|x86.ActiveCfg = Release|x86
 		{D030E9AE-ED06-40ED-A53E-F6745DDF2DC9}.Release|x86.Build.0 = Release|x86
 		{D030E9AE-ED06-40ED-A53E-F6745DDF2DC9}.Release|x86.Deploy.0 = Release|x86
+		{BE2676AC-7969-41A9-BA65-68011B0A8D36}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BE2676AC-7969-41A9-BA65-68011B0A8D36}.Debug|x64.Build.0 = Debug|Any CPU
+		{BE2676AC-7969-41A9-BA65-68011B0A8D36}.Release|x64.ActiveCfg = Release|Any CPU
+		{BE2676AC-7969-41A9-BA65-68011B0A8D36}.Release|x64.Build.0 = Release|Any CPU
 		{77305355-F4B4-40C3-A77D-C8A7828CDDB3}.Debug|x64.ActiveCfg = Debug|Any CPU
 		{77305355-F4B4-40C3-A77D-C8A7828CDDB3}.Debug|x64.Build.0 = Debug|Any CPU
 		{77305355-F4B4-40C3-A77D-C8A7828CDDB3}.Release|x64.ActiveCfg = Release|Any CPU

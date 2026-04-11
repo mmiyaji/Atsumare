@@ -30,6 +30,22 @@ namespace Atsumare
         private IntPtr _hwnd = IntPtr.Zero;
         private WndProc? _wndProc;
 
+        internal static bool CanRegisterHotkey(HotkeyModifiers modifiers, uint virtualKey, out int errorCode)
+        {
+            try
+            {
+                using var probe = new HotkeyHost();
+                probe.StartRegisterHotkey(modifiers, (HotkeyVKey)virtualKey);
+                errorCode = 0;
+                return true;
+            }
+            catch (HotkeyRegistrationException ex)
+            {
+                errorCode = ex.ErrorCode;
+                return false;
+            }
+        }
+
         public void StartRegisterHotkey(HotkeyModifiers modifiers, HotkeyVKey virtualKey)
         {
             if (_hwnd != IntPtr.Zero)
@@ -47,7 +63,7 @@ namespace Atsumare
                 var err = Marshal.GetLastWin32Error();
                 DestroyWindow(_hwnd);
                 _hwnd = IntPtr.Zero;
-                throw new InvalidOperationException($"RegisterHotKey failed. err={err}");
+                throw new HotkeyRegistrationException(err);
             }
         }
 
@@ -163,5 +179,16 @@ namespace Atsumare
 
             return hwnd;
         }
+    }
+
+    internal sealed class HotkeyRegistrationException : InvalidOperationException
+    {
+        internal HotkeyRegistrationException(int errorCode)
+            : base($"RegisterHotKey failed. err={errorCode}")
+        {
+            ErrorCode = errorCode;
+        }
+
+        internal int ErrorCode { get; }
     }
 }
