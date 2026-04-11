@@ -1,3 +1,8 @@
+---
+title: Terms of Use
+permalink: /terms-of-use.html
+---
+
 # Atsumare Terms of Use
 
 Last updated: 2026-04-11
@@ -40,8 +45,6 @@ These terms terminate automatically if you fail to comply with them. You may als
 
 ## Contact
 
-For support or legal inquiries, contact:
+For support or legal inquiries, use the support page:
 
-- `support@example.com`
-
-Replace the contact address above before publishing.
+- [Atsumare Support](./support.html)

@@ -1,3 +1,8 @@
+---
+title: Privacy Policy
+permalink: /privacy-policy.html
+---
+
 # Privacy Policy for Atsumare
 
 Last updated: 2026-04-11
@@ -61,8 +66,6 @@ Atsumare is not directed to children and is intended as a desktop productivity u
 
 ## Contact
 
-For privacy questions, contact:
+For privacy questions, use the support page:
 
-- `support@example.com`
-
-Replace the contact address above before publishing.
+- [Atsumare Support](./support.html)

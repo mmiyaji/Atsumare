@@ -9,15 +9,15 @@
   IgnorableNamespaces="uap desktop rescap">
 
   <Identity
-    Name="9da1b0ea-41f3-410c-a252-75f6344fedc1"
-    Publisher="CN=mail"
-    Version="1.0.9.0" />
+    Name="mmiyaji.250095B747C84"
+    Publisher="CN=663C5D03-791A-4B2C-8509-629FA1CA125A"
+    Version="1.0.12.0" />
 
-  <mp:PhoneIdentity PhoneProductId="9da1b0ea-41f3-410c-a252-75f6344fedc1" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+  <mp:PhoneIdentity PhoneProductId="d86d2324-bab4-4f4b-a9f8-81eb5cc42458" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
     <DisplayName>Atsumare</DisplayName>
-    <PublisherDisplayName>mail</PublisherDisplayName>
+    <PublisherDisplayName>mmiyaji</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 

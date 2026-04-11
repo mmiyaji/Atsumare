@@ -42,3 +42,22 @@ The app also supports an E2E mode used by the test project:
 - `ATSUMARE_E2E_INSTANCE_ID=<unique id>`
 
 In E2E mode, the app avoids tray/hotkey side effects and can be launched with `--settings` to open the settings window directly.
+
+## GitHub Pages
+
+This repository includes a simple Pages site under `docs/` for Store submission links.
+
+Recommended repository settings:
+
+```text
+Settings > Pages > Build and deployment > Source = Deploy from a branch
+Branch = main (or your default branch)
+Folder = /docs
+```
+
+Expected public URLs:
+
+- `https://mmiyaji.github.io/Atsumare/`
+- `https://mmiyaji.github.io/Atsumare/privacy-policy.html`
+- `https://mmiyaji.github.io/Atsumare/terms-of-use.html`
+- `https://mmiyaji.github.io/Atsumare/support.html`

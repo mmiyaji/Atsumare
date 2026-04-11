@@ -1,11 +1,15 @@
+---
+title: Support
+permalink: /support.html
+---
+
 # Atsumare Support
 
 For support, bug reports, or Store-related inquiries:
 
-- Email: `support@example.com`
-- Website: `https://example.com/atsumare`
-
-Replace these placeholders before publishing.
+- Website: [Atsumare GitHub Pages](https://mmiyaji.github.io/Atsumare/)
+- Repository: [mmiyaji/Atsumare](https://github.com/mmiyaji/Atsumare)
+- Issues: [GitHub Issues](https://github.com/mmiyaji/Atsumare/issues)
 
 ## Information to Include in a Support Request
 
