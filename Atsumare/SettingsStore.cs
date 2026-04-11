@@ -16,6 +16,13 @@ public static class SettingsStore
 
     private static string GetSettingsPath()
     {
+        var overriddenPath = E2ETestMode.GetSettingsPathOverride();
+        if (!string.IsNullOrWhiteSpace(overriddenPath))
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(overriddenPath)!);
+            return overriddenPath;
+        }
+
         var baseDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Atsumare"
@@ -32,7 +39,7 @@ public static class SettingsStore
             var path = GetSettingsPath();
             if (!File.Exists(path))
             {
-                Current = new AtsumareSettings();
+                Current = E2ETestMode.CreateDefaultSettings();
                 return Current;
             }
 
@@ -47,7 +54,7 @@ public static class SettingsStore
         catch (Exception ex)
         {
             CrashLog.Write(ex, "SettingsStore.LoadAsync");
-            Current = new AtsumareSettings();
+            Current = E2ETestMode.CreateDefaultSettings();
             return Current;
         }
         finally

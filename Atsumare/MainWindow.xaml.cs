@@ -17,6 +17,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Windows.Graphics.Imaging;
 using WinRT.Interop;
 
@@ -24,11 +25,20 @@ namespace Atsumare;
 
 public sealed partial class MainWindow : Window
 {
+#if DEBUG
+    private const bool ShowDeveloperDiagnostics = true;
+#else
+    private const bool ShowDeveloperDiagnostics = false;
+#endif
+
     // =========================
     // UI Bindings
     // =========================
     public ObservableCollection<AppGroupItem> AllItems { get; } = new();
     public ObservableCollection<AppGroupItem> FilteredItems { get; } = new();
+    public string DebugRibbonText { get; }
+    public Visibility DebugRibbonVisibility => ShowDeveloperDiagnostics ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility DebugBannerVisibility => ShowDeveloperDiagnostics ? Visibility.Visible : Visibility.Collapsed;
 
     private bool _focusedOnce;
     private bool _topMostOnce;
@@ -53,8 +63,14 @@ public sealed partial class MainWindow : Window
 
     private AppWindow? _cachedAppWindow;
 
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(uint pid, long startTicks), ImageSource?> _iconCache
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(uint pid, long startTicks), IconLoadResult> _iconCache
         = new();
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<(uint pid, long startTicks), Task<IconLoadResult>> _iconLoadTasks
+        = new();
+    private static readonly SemaphoreSlim _sharedReloadGate = new(1, 1);
+    private static AppGroupItem[] _latestSnapshot = Array.Empty<AppGroupItem>();
+    private static long _latestSnapshotTick;
+    private const int DesiredIconSize = 64;
 
     private SettingsWindow? _settingsWindow;
 
@@ -81,6 +97,7 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
+        DebugRibbonText = BuildDebugRibbonText();
         InitializeComponent();
 
         try
@@ -221,7 +238,7 @@ public sealed partial class MainWindow : Window
     // 縲瑚ｵｷ蜍墓凾繝医Ξ繧､譛蟆丞喧縲阪ｒ蜷ｫ繧窶懊ヨ繝ｬ繧､驕狗畑繝輔Λ繧ｰ窶昴ｒ蠎・ａ縺ｫ諡ｾ縺・ｼ医・繝ｭ繝代ユ繧｣蜷阪′驕輔▲縺ｦ繧り誠縺｡縺ｪ縺・ｼ・
     private static bool ShouldCloseToTray()
     {
-        try { return SettingsStore.Current.CloseButtonMinimizesToTray; }
+        try { return !E2ETestMode.IsEnabled && SettingsStore.Current.CloseButtonMinimizesToTray; }
         catch { return false; }
     }
 
@@ -237,6 +254,23 @@ public sealed partial class MainWindow : Window
     internal void InitializeForMonitor(IntPtr targetMonitor)
     {
         _targetMonitorForThisWindow = targetMonitor;
+    }
+
+    internal void ActivateAndFocus()
+    {
+        try { Activate(); } catch { }
+
+        DispatcherQueue.TryEnqueue(async () =>
+        {
+            await Task.Delay(50);
+            TryBringToForeground();
+            try
+            {
+                FilterBox?.Focus(FocusState.Programmatic);
+                FilterBox?.SelectAll();
+            }
+            catch { }
+        });
     }
 
     // =========================
@@ -406,7 +440,9 @@ public sealed partial class MainWindow : Window
 
             var showOverlay = SettingsStore.Current.ShowMoveOverlay;
             if (showOverlay) { MoveOverlayText.Text = "Moving..."; MoveOverlayRing.IsActive = true; MoveOverlay.Visibility = Visibility.Visible; await Task.Yield(); }
-            MoveAllWindowsOfProcessToMonitor(item.Pid, targetMon); if (showOverlay) { MoveOverlayText.Text = "Moved"; MoveOverlayRing.IsActive = false; await Task.Delay(180); MoveOverlay.Visibility = Visibility.Collapsed; } DispatcherQueue.TryEnqueue(CloseAllAtsumareWindows);
+            foreach (var pid in item.Pids.Distinct())
+                MoveAllWindowsOfProcessToMonitor(pid, targetMon);
+            if (showOverlay) { MoveOverlayText.Text = "Moved"; MoveOverlayRing.IsActive = false; await Task.Delay(180); MoveOverlay.Visibility = Visibility.Collapsed; } DispatcherQueue.TryEnqueue(CloseAllAtsumareWindows);
         }
         catch (Exception ex)
         {
@@ -622,6 +658,43 @@ public sealed partial class MainWindow : Window
     // =========================
     private async Task ReloadRunningWindowsAsync(CancellationToken ct)
     {
+        AppGroupItem[] items;
+
+        await _sharedReloadGate.WaitAsync(ct);
+        try
+        {
+            var ageMs = Environment.TickCount64 - Interlocked.Read(ref _latestSnapshotTick);
+            if (_latestSnapshot.Length > 0 && ageMs >= 0 && ageMs <= 1500)
+            {
+                items = _latestSnapshot.Select(CloneAppGroupItem).ToArray();
+                LogPerf($"[Perf] Reload reused shared snapshot count={items.Length} age_ms={ageMs}");
+            }
+            else
+            {
+                items = await BuildRunningWindowSnapshotAsync(ct);
+                _latestSnapshot = items.Select(CloneAppGroupItem).ToArray();
+                Interlocked.Exchange(ref _latestSnapshotTick, Environment.TickCount64);
+            }
+        }
+        finally
+        {
+            _sharedReloadGate.Release();
+        }
+
+        ct.ThrowIfCancellationRequested();
+        if (IsClosing) return;
+
+        AllItems.Clear();
+        foreach (var item in items)
+            AllItems.Add(item);
+
+        if (ct.IsCancellationRequested || IsClosing) return;
+        ApplyFilter(FilterBox.Text);
+    }
+
+    private async Task<AppGroupItem[]> BuildRunningWindowSnapshotAsync(CancellationToken ct)
+    {
+        var swTotal = Stopwatch.StartNew();
         ct.ThrowIfCancellationRequested();
 
         var windows = new List<(IntPtr hWnd, string title, uint pid)>();
@@ -650,20 +723,37 @@ public sealed partial class MainWindow : Window
             windows.Add((hWnd, title, pid));
             return true;
         }, IntPtr.Zero);
+        LogPerf($"[Perf] Reload enum windows={windows.Count} elapsed_ms={swTotal.ElapsedMilliseconds}");
 
         ct.ThrowIfCancellationRequested();
-        if (IsClosing) return;
+        if (IsClosing) return Array.Empty<AppGroupItem>();
 
         var fg = GetForegroundWindow();
 
+        var exePathByPid = windows
+            .Select(w => w.pid)
+            .Distinct()
+            .ToDictionary(pid => pid, TryGetExePath);
+
+        var appNameByPid = windows
+            .Select(w => w.pid)
+            .Distinct()
+            .ToDictionary(
+                pid => pid,
+                pid =>
+                {
+                    var fallback = windows.FirstOrDefault(w => w.pid == pid).title;
+                    return GetAppDisplayName(pid, fallback);
+                });
+
         var groups = windows
-            .GroupBy(w => w.pid)
+            .GroupBy(w => BuildWindowGroupKey(w, exePathByPid, appNameByPid))
             .Select(g =>
             {
                 // foreground 縺ｮ PID 縺ｪ繧峨◎繧後ｒ陦ｨ遉ｺ
                 var fgItem = g.FirstOrDefault(x => x.hWnd == fg);
                 if (fgItem.hWnd != IntPtr.Zero)
-                    return fgItem;
+                    return (Representative: fgItem, Members: g.ToList());
 
                 // 譛螟ｧ髱｢遨阪・繧ｦ繧｣繝ｳ繝峨え繧定｡ｨ遉ｺ
                 (IntPtr hWnd, string title, uint pid) best = default;
@@ -690,48 +780,62 @@ public sealed partial class MainWindow : Window
                 }
 
                 if (best.hWnd != IntPtr.Zero)
-                    return best;
+                    return (Representative: best, Members: g.ToList());
 
-                return g.First();
+                return (Representative: g.First(), Members: g.ToList());
             })
             .ToList();
+        LogPerf($"[Perf] Reload group groups={groups.Count} unique_pids={exePathByPid.Count} elapsed_ms={swTotal.ElapsedMilliseconds}");
 
         ct.ThrowIfCancellationRequested();
-        if (IsClosing) return;
+        if (IsClosing) return Array.Empty<AppGroupItem>();
 
         // 笘・％縺薙°繧・UI/繝舌う繝ｳ繝牙ｯｾ雎｡繧定ｧｦ繧九・縺ｧ縲√く繝｣繝ｳ繧ｻ繝ｫ蠕後・隗ｦ繧峨↑縺・
-        if (ct.IsCancellationRequested) return;
+        if (ct.IsCancellationRequested) return Array.Empty<AppGroupItem>();
 
-        AllItems.Clear();
-
-        foreach (var w in groups)
+        var itemTasks = groups.Select(async group =>
         {
-            ct.ThrowIfCancellationRequested();
-            if (IsClosing) return;
-
+            var swItem = Stopwatch.StartNew();
+            var w = group.Representative;
             Breadcrumbs.Add($"Icon start pid={w.pid} hwnd=0x{w.hWnd.ToInt64():X}");
-            var icon = await GetWindowIconAsync(w.hWnd, w.pid);
+            var iconResult = await GetWindowIconAsync(w.hWnd, w.pid);
             Breadcrumbs.Add($"Icon end pid={w.pid}");
-            ct.ThrowIfCancellationRequested();
-            if (IsClosing) return;
 
-            var appName = GetAppDisplayName(w.pid, w.title);
+            var appName = appNameByPid[w.pid];
+            var displayName = BuildItemDisplayName(appName, w.pid, iconResult);
+            LogPerf($"[Item] pid={w.pid} hwnd=0x{w.hWnd.ToInt64():X} exe={iconResult.ExePath ?? "<unknown>"} source={iconResult.Source} app={appName} title={w.title}");
+            LogPerf($"[Perf] Item pid={w.pid} source={iconResult.Source} elapsed_ms={swItem.ElapsedMilliseconds}");
 
-            AllItems.Add(new AppGroupItem
+            return new AppGroupItem
             {
-                AppName = appName,
+                AppName = displayName,
                 WindowTitle = w.title,
-                Icon = icon,
+                Icon = iconResult.Image,
                 Pid = w.pid,
+                Pids = group.Members.Select(x => x.pid).Distinct().ToArray(),
                 Hwnd = w.hWnd,
-                Description = $"PID: {w.pid}"
-            });
-        }
+                Description = BuildItemDescription(w.pid, iconResult)
+            };
+        }).ToArray();
 
-        App.LogVerbose($"[Reload] {AllItems.Count} apps loaded (from {windows.Count} windows)");
+        var items = await Task.WhenAll(itemTasks);
+        LogPerf($"[Perf] Reload icons_done groups={groups.Count} elapsed_ms={swTotal.ElapsedMilliseconds}");
 
-        if (ct.IsCancellationRequested || IsClosing) return;
-        ApplyFilter(FilterBox.Text);
+        ct.ThrowIfCancellationRequested();
+        if (IsClosing) return Array.Empty<AppGroupItem>();
+
+        LogPerf($"[Perf] Reload ui_ready count={items.Length} elapsed_ms={swTotal.ElapsedMilliseconds}");
+        App.LogVerbose($"[Reload] {items.Length} apps loaded (from {windows.Count} windows)");
+        LogPerf($"[Perf] Reload complete filtered={items.Length} elapsed_ms={swTotal.ElapsedMilliseconds}");
+        return items.Select(CloneAppGroupItem).ToArray();
+    }
+
+    private static void LogPerf(string message)
+    {
+#if DEBUG
+        if (ShowDeveloperDiagnostics)
+            App.LogLine(message);
+#endif
     }
 
     // =========================
@@ -754,7 +858,35 @@ public sealed partial class MainWindow : Window
     // =========================
     // Icon helpers
     // =========================
-    private async Task<ImageSource?> GetWindowIconAsync(IntPtr hWnd, uint pid)
+    private static string BuildItemDisplayName(string appName, uint pid, IconLoadResult iconResult)
+    {
+        return ShowDeveloperDiagnostics
+            ? $"{appName}\n{iconResult.Source}"
+            : appName;
+    }
+
+    private static string BuildItemDescription(uint pid, IconLoadResult iconResult)
+    {
+        return ShowDeveloperDiagnostics
+            ? $"PID:{pid}"
+            : "";
+    }
+
+    private static string BuildWindowGroupKey(
+        (IntPtr hWnd, string title, uint pid) window,
+        IReadOnlyDictionary<uint, string?> exePathByPid,
+        IReadOnlyDictionary<uint, string> appNameByPid)
+    {
+        var exePath = exePathByPid.TryGetValue(window.pid, out var path) && !string.IsNullOrWhiteSpace(path)
+            ? path!
+            : $"pid:{window.pid}";
+        var appName = appNameByPid.TryGetValue(window.pid, out var name) && !string.IsNullOrWhiteSpace(name)
+            ? name
+            : window.title;
+        return $"{exePath}|{appName}";
+    }
+
+    private async Task<IconLoadResult> GetWindowIconAsync(IntPtr hWnd, uint pid)
     {
         var key = (pid, TryGetProcessStartTicks(pid));
 
@@ -762,29 +894,388 @@ public sealed partial class MainWindow : Window
         if (_iconCache.TryGetValue(key, out var cached))
             return cached;
 
-        IntPtr hIcon = SendMessage(hWnd, WM_GETICON, (IntPtr)ICON_BIG, IntPtr.Zero);
-
-        if (hIcon == IntPtr.Zero)
-            hIcon = SendMessage(hWnd, WM_GETICON, (IntPtr)ICON_SMALL2, IntPtr.Zero);
-
-        if (hIcon == IntPtr.Zero)
-            hIcon = SendMessage(hWnd, WM_GETICON, (IntPtr)ICON_SMALL, IntPtr.Zero);
-
-        if (hIcon == IntPtr.Zero)
-            hIcon = GetClassLongPtr(hWnd, GCLP_HICON);
-
-        if (hIcon == IntPtr.Zero)
-            hIcon = GetClassLongPtr(hWnd, GCLP_HICONSM);
-
-        if (hIcon == IntPtr.Zero)
+        var inFlight = _iconLoadTasks.GetOrAdd(key, _ => LoadWindowIconCoreAsync(hWnd, pid, key));
+        try
         {
-            _iconCache.TryAdd(key, null);
-            return null;
+            return await inFlight;
+        }
+        finally
+        {
+            if (inFlight.IsCompleted)
+                _iconLoadTasks.TryRemove(key, out _);
+        }
+    }
+
+    private void TryBringToForeground()
+    {
+        var hwnd = WindowNative.GetWindowHandle(this);
+        if (hwnd == IntPtr.Zero)
+            return;
+
+        ShowWindow(hwnd, SW_RESTORE);
+        BringWindowToTop(hwnd);
+        SetForegroundWindow(hwnd);
+        SetActiveWindow(hwnd);
+        SetFocus(hwnd);
+    }
+
+    private async Task<IconLoadResult> LoadWindowIconCoreAsync(IntPtr hWnd, uint pid, (uint pid, long startTicks) key)
+    {
+        if (_iconCache.TryGetValue(key, out var cached))
+            return cached;
+
+        ImageSource? icon = null;
+        var source = "none";
+        IntPtr fallbackHicon = IntPtr.Zero;
+        var exePath = TryGetExePath(pid);
+        var traceIcon = ShouldTraceIcon(exePath);
+
+        LogIconDecision(traceIcon, $"Start pid={pid} exe={exePath ?? "<unknown>"}");
+
+        var preferPackagedAsset = ShouldPreferPackagedAsset(exePath);
+
+        if (!preferPackagedAsset)
+        {
+            foreach (var candidate in EnumerateWindowIconCandidates(hWnd))
+            {
+                if (candidate == IntPtr.Zero)
+                    continue;
+
+                var iconSize = GetIconDimensions(candidate);
+                LogIconDecision(traceIcon, $"Window candidate pid={pid} handle=0x{candidate.ToInt64():X} size={iconSize.width}x{iconSize.height}");
+                if (iconSize.width >= DesiredIconSize || iconSize.height >= DesiredIconSize)
+                {
+                    icon = await HiconToImageSourceAsync(candidate);
+                    source = $"window:{iconSize.width}x{iconSize.height}";
+                    LogIconDecision(traceIcon, $"Selected window icon pid={pid} size={iconSize.width}x{iconSize.height}");
+                    break;
+                }
+
+                if (fallbackHicon == IntPtr.Zero)
+                    fallbackHicon = candidate;
+            }
         }
 
-        var icon = await HiconToImageSourceAsync(hIcon);
-        _iconCache.TryAdd(key, icon);
-        return icon;
+        if (icon == null && !string.IsNullOrWhiteSpace(exePath))
+        {
+            var packaged = await ExtractPackagedAppLogoAsync(exePath);
+            if (packaged.Image != null)
+            {
+                icon = packaged.Image;
+                source = packaged.Source;
+            }
+            else
+            {
+                var extracted = await ExtractHighResolutionIconAsync(exePath);
+                if (extracted.Image != null)
+                {
+                    icon = extracted.Image;
+                    source = extracted.Source;
+                }
+            }
+        }
+
+        if (icon == null && preferPackagedAsset)
+        {
+            foreach (var candidate in EnumerateWindowIconCandidates(hWnd))
+            {
+                if (candidate == IntPtr.Zero)
+                    continue;
+
+                var iconSize = GetIconDimensions(candidate);
+                LogIconDecision(traceIcon, $"Late window candidate pid={pid} handle=0x{candidate.ToInt64():X} size={iconSize.width}x{iconSize.height}");
+                if (iconSize.width >= DesiredIconSize || iconSize.height >= DesiredIconSize)
+                {
+                    icon = await HiconToImageSourceAsync(candidate);
+                    source = $"late-window:{iconSize.width}x{iconSize.height}";
+                    LogIconDecision(traceIcon, $"Selected late window icon pid={pid} size={iconSize.width}x{iconSize.height}");
+                    break;
+                }
+
+                if (fallbackHicon == IntPtr.Zero)
+                    fallbackHicon = candidate;
+            }
+        }
+
+        if (icon == null && fallbackHicon != IntPtr.Zero)
+        {
+            icon = await HiconToImageSourceAsync(fallbackHicon);
+            source = "window:fallback";
+            LogIconDecision(traceIcon, $"Fell back to small window icon pid={pid} handle=0x{fallbackHicon.ToInt64():X}");
+        }
+
+        LogIconDecision(traceIcon, $"Result pid={pid} success={icon != null}");
+        var result = new IconLoadResult(icon, source, exePath);
+        _iconCache.TryAdd(key, result);
+        return result;
+    }
+
+    private static AppGroupItem CloneAppGroupItem(AppGroupItem item)
+        => new()
+        {
+            AppName = item.AppName,
+            WindowTitle = item.WindowTitle,
+            Icon = item.Icon,
+            Hwnd = item.Hwnd,
+            Pid = item.Pid,
+            Pids = item.Pids.ToArray(),
+            Description = item.Description
+        };
+
+    private static bool ShouldTraceIcon(string? exePath)
+    {
+        if (string.IsNullOrWhiteSpace(exePath))
+            return false;
+
+        var normalized = exePath.Replace('\\', '/');
+        return normalized.Contains("/OpenAI.Codex_", StringComparison.OrdinalIgnoreCase)
+            || normalized.EndsWith("/Codex.exe", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ShouldPreferPackagedAsset(string? exePath) => FindPackageInstallRoot(exePath ?? "") != null;
+
+    private static void LogIconDecision(bool force, string message)
+    {
+        if (force)
+            App.LogLine($"[Icon] {message}");
+        else
+            App.LogVerbose($"[Icon] {message}");
+    }
+
+    private static IEnumerable<IntPtr> EnumerateWindowIconCandidates(IntPtr hWnd)
+    {
+        yield return SendMessage(hWnd, WM_GETICON, (IntPtr)ICON_BIG, IntPtr.Zero);
+        yield return SendMessage(hWnd, WM_GETICON, (IntPtr)ICON_SMALL2, IntPtr.Zero);
+        yield return SendMessage(hWnd, WM_GETICON, (IntPtr)ICON_SMALL, IntPtr.Zero);
+        yield return GetClassLongPtr(hWnd, GCLP_HICON);
+        yield return GetClassLongPtr(hWnd, GCLP_HICONSM);
+    }
+
+    private static (int width, int height) GetIconDimensions(IntPtr hIcon)
+    {
+        if (hIcon == IntPtr.Zero || !GetIconInfo(hIcon, out var ii))
+            return (0, 0);
+
+        try
+        {
+            var hbmp = ii.hbmColor != IntPtr.Zero ? ii.hbmColor : ii.hbmMask;
+            if (hbmp == IntPtr.Zero || GetObject(hbmp, Marshal.SizeOf<BITMAP>(), out var bmp) == 0)
+                return (0, 0);
+
+            return (bmp.bmWidth, Math.Abs(bmp.bmHeight));
+        }
+        finally
+        {
+            if (ii.hbmColor != IntPtr.Zero) DeleteObject(ii.hbmColor);
+            if (ii.hbmMask != IntPtr.Zero) DeleteObject(ii.hbmMask);
+        }
+    }
+
+    private static async Task<IconLoadResult> ExtractHighResolutionIconAsync(string exePath)
+    {
+        IntPtr bestIcon = IntPtr.Zero;
+        var bestArea = 0;
+        string source = "exe:none";
+
+        try
+        {
+            for (var iconIndex = 0; iconIndex < 32; iconIndex++)
+            {
+                var candidateIcons = new IntPtr[1];
+                try
+                {
+                    var extracted = PrivateExtractIcons(
+                        exePath,
+                        iconIndex,
+                        256,
+                        256,
+                        candidateIcons,
+                        null,
+                        1,
+                        0);
+
+                    if (extracted == 0 || candidateIcons[0] == IntPtr.Zero)
+                        break;
+
+                    var size = GetIconDimensions(candidateIcons[0]);
+                    var area = size.width * size.height;
+                    LogIconDecision(ShouldTraceIcon(exePath), $"Extracted exe icon path={exePath} index={iconIndex} size={size.width}x{size.height}");
+                    if (area > bestArea)
+                    {
+                        if (bestIcon != IntPtr.Zero)
+                            DestroyIcon(bestIcon);
+
+                        bestIcon = candidateIcons[0];
+                        bestArea = area;
+                        source = $"exe:index={iconIndex}:{size.width}x{size.height}";
+                        candidateIcons[0] = IntPtr.Zero;
+
+                        if (size.width >= 256 || size.height >= 256)
+                            break;
+                    }
+                }
+                finally
+                {
+                    if (candidateIcons[0] != IntPtr.Zero)
+                        DestroyIcon(candidateIcons[0]);
+                }
+            }
+
+            if (bestIcon == IntPtr.Zero)
+                return new IconLoadResult(null, source, exePath);
+
+            LogIconDecision(ShouldTraceIcon(exePath), $"Selected exe icon path={exePath} area={bestArea}");
+            return new IconLoadResult(await HiconToImageSourceAsync(bestIcon), source, exePath);
+        }
+        catch
+        {
+            return new IconLoadResult(null, source, exePath);
+        }
+        finally
+        {
+            if (bestIcon != IntPtr.Zero)
+                DestroyIcon(bestIcon);
+        }
+    }
+
+    private static async Task<IconLoadResult> ExtractPackagedAppLogoAsync(string exePath)
+    {
+        try
+        {
+            var traceIcon = ShouldTraceIcon(exePath);
+            var installRoot = FindPackageInstallRoot(exePath);
+            if (installRoot == null)
+                return new IconLoadResult(null, "packaged:no-root", exePath);
+
+            var manifestPath = Path.Combine(installRoot, "AppxManifest.xml");
+            if (!File.Exists(manifestPath))
+                return new IconLoadResult(null, "packaged:no-manifest", exePath);
+
+            LogIconDecision(traceIcon, $"Packaged app manifest={manifestPath}");
+            var manifest = XDocument.Load(manifestPath);
+            XNamespace ns = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
+            XNamespace uap = "http://schemas.microsoft.com/appx/manifest/uap/windows10";
+
+            var square44Logo = manifest.Root?.Element(ns + "Applications")?
+                .Element(ns + "Application")?
+                .Element(uap + "VisualElements")?
+                .Attribute("Square44x44Logo")?.Value;
+
+            var relativeCandidates = new[]
+            {
+                square44Logo,
+                manifest.Root?.Element(ns + "Applications")?
+                    .Element(ns + "Application")?
+                    .Element(uap + "VisualElements")?
+                    .Attribute("Square150x150Logo")?.Value,
+                manifest.Root?.Element(ns + "Properties")?
+                    .Element(ns + "Logo")?.Value,
+            }
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Cast<string>()
+            .ToArray();
+
+            foreach (var relativePath in relativeCandidates)
+            {
+                var assetPath = ResolveBestPackagedAssetPath(installRoot, relativePath, preferSmallLogo: true);
+                LogIconDecision(traceIcon, $"Packaged asset candidate base={relativePath} resolved={assetPath ?? "<none>"}");
+                if (!string.IsNullOrWhiteSpace(assetPath))
+                {
+                    var image = await LoadImageSourceFromFileAsync(assetPath);
+                    if (image != null)
+                    {
+                        LogIconDecision(traceIcon, $"Selected packaged asset path={assetPath}");
+                        return new IconLoadResult(image, $"packaged:{Path.GetFileName(assetPath)}", exePath);
+                    }
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return new IconLoadResult(null, "packaged:none", exePath);
+    }
+
+    private static string? FindPackageInstallRoot(string exePath)
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(exePath);
+            while (!string.IsNullOrWhiteSpace(dir))
+            {
+                if (File.Exists(Path.Combine(dir, "AppxManifest.xml")))
+                    return dir;
+
+                dir = Directory.GetParent(dir)?.FullName;
+            }
+        }
+        catch
+        {
+        }
+
+        return null;
+    }
+
+    private static string? ResolveBestPackagedAssetPath(string installRoot, string relativeAssetPath, bool preferSmallLogo = false)
+    {
+        var normalized = relativeAssetPath.Replace('/', Path.DirectorySeparatorChar)
+            .Replace('\\', Path.DirectorySeparatorChar);
+        var primaryPath = Path.Combine(installRoot, normalized);
+        var directory = Path.GetDirectoryName(primaryPath);
+        var stem = Path.GetFileNameWithoutExtension(primaryPath);
+        var extension = Path.GetExtension(primaryPath);
+
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+            return File.Exists(primaryPath) ? primaryPath : null;
+
+        var candidates = Directory.GetFiles(directory, $"{stem}*{extension}")
+            .OrderByDescending(path => GetPackagedAssetScore(path, preferSmallLogo))
+            .ToArray();
+
+        return candidates.FirstOrDefault(File.Exists) ?? (File.Exists(primaryPath) ? primaryPath : null);
+    }
+
+    private static int GetPackagedAssetScore(string path, bool preferSmallLogo = false)
+    {
+        var fileName = Path.GetFileName(path).ToLowerInvariant();
+        var score = 0;
+
+        if (fileName.Contains("targetsize-256")) score += 5000;
+        if (fileName.Contains("targetsize-96")) score += 300;
+        if (fileName.Contains("targetsize-80")) score += 250;
+        if (fileName.Contains("targetsize-64")) score += 200;
+        if (fileName.Contains("scale-400")) score += 450;
+        if (fileName.Contains("scale-200")) score += 350;
+        if (fileName.Contains("scale-150")) score += 250;
+        if (fileName.Contains("square150x150")) score += 150;
+        if (preferSmallLogo && fileName.Contains("square44x44")) score += 2000;
+        if (preferSmallLogo && fileName.Contains("square150x150")) score -= 1500;
+        if (fileName.Contains("altform-unplated")) score += 75;
+        if (fileName.Contains("altform-lightunplated")) score += 50;
+        if (fileName == "icon.png") score += 125;
+
+        return score;
+    }
+
+    private static async Task<ImageSource?> LoadImageSourceFromFileAsync(string path)
+    {
+        try
+        {
+            using var stream = File.OpenRead(path);
+            var randomAccessStream = stream.AsRandomAccessStream();
+            var bitmap = new BitmapImage
+            {
+                DecodePixelWidth = DesiredIconSize,
+                DecodePixelHeight = DesiredIconSize
+            };
+            await bitmap.SetSourceAsync(randomAccessStream);
+            return bitmap;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static async Task<ImageSource?> HiconToImageSourceAsync(IntPtr hIcon)
@@ -946,14 +1437,63 @@ public sealed partial class MainWindow : Window
         return fgPid == GetCurrentProcessId();
     }
 
+    private static string BuildDebugRibbonText()
+    {
+        string version;
+        try
+        {
+            if (Windows.ApplicationModel.Package.Current is { } package)
+            {
+                var v = package.Id.Version;
+                version = $"{v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
+            }
+            else
+            {
+                version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
+            }
+        }
+        catch
+        {
+            version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
+        }
+
+        string assemblyPath;
+        DateTime buildTime;
+        try
+        {
+            assemblyPath = Assembly.GetExecutingAssembly().Location;
+            if (string.IsNullOrWhiteSpace(assemblyPath))
+                assemblyPath = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? "<unknown>";
+
+            buildTime = File.Exists(assemblyPath) ? File.GetLastWriteTime(assemblyPath) : DateTime.MinValue;
+        }
+        catch
+        {
+            assemblyPath = "<unknown>";
+            buildTime = DateTime.MinValue;
+        }
+
+        var buildTimeText = buildTime == DateTime.MinValue
+            ? "unknown"
+            : buildTime.ToString("yyyy-MM-dd HH:mm:ss");
+
+        return ShowDeveloperDiagnostics
+            ? $"DEBUG BUILD v{version}\nPID:{Environment.ProcessId}\nBuilt:{buildTimeText}\n{Path.GetFileName(assemblyPath)}"
+            : "";
+    }
+
     static HashSet<string> BuildExcludeSet()
     {
         var csv = SettingsStore.Current.ExcludeProcessNamesCsv ?? "";
-        return csv
+        var set = csv
             .Split(new[] { ',', '\n', '\r', ';' }, StringSplitOptions.RemoveEmptyEntries)
             .Select(x => x.Trim())
             .Where(x => x.Length > 0)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // UWP/Store app のホストで、一覧に出しても操作対象としての意味が薄い。
+        set.Add("ApplicationFrameHost");
+        return set;
     }
 
     static bool ShouldExcludeByProcessName(uint pid, HashSet<string> exclude)
@@ -1178,6 +1718,32 @@ public sealed partial class MainWindow : Window
     [DllImport("user32.dll")]
     private static extern bool GetIconInfo(IntPtr hIcon, out ICONINFO piconinfo);
 
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool BringWindowToTop(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetActiveWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetFocus(IntPtr hWnd);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern uint PrivateExtractIcons(
+        string szFileName,
+        int nIconIndex,
+        int cxIcon,
+        int cyIcon,
+        IntPtr[] phicon,
+        uint[]? piconid,
+        uint nIcons,
+        uint flags);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool DestroyIcon(IntPtr hIcon);
+
     [DllImport("gdi32.dll")]
     private static extern bool DeleteObject(IntPtr hObject);
 }
@@ -1189,6 +1755,9 @@ public sealed class AppGroupItem
     public ImageSource? Icon { get; set; }
     public IntPtr Hwnd { get; set; }
     public uint Pid { get; set; }
+    public IReadOnlyList<uint> Pids { get; set; } = Array.Empty<uint>();
     public string Description { get; set; } = "";
 }
+
+internal sealed record IconLoadResult(ImageSource? Image, string Source, string? ExePath);
 

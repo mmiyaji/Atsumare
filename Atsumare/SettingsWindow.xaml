@@ -9,6 +9,7 @@
 
     <NavigationView
         x:Name="Nav"
+        AutomationProperties.AutomationId="Nav"
         IsBackButtonVisible="Collapsed"
         IsSettingsVisible="False"
         PaneDisplayMode="Left"
@@ -49,37 +50,37 @@
         </NavigationView.Resources>
 
         <NavigationView.MenuItems>
-            <NavigationViewItem Content="全般" Tag="general">
+            <NavigationViewItem Content="全般" Tag="general" AutomationProperties.AutomationId="NavGeneral">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="Setting"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
-            <NavigationViewItem Content="移動" Tag="move">
+            <NavigationViewItem Content="移動" Tag="move" AutomationProperties.AutomationId="NavMove">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="Forward"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
-            <NavigationViewItem Content="アプリ一覧" Tag="applist">
+            <NavigationViewItem Content="アプリ一覧" Tag="applist" AutomationProperties.AutomationId="NavAppList">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="AllApps"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
-            <NavigationViewItem Content="ログ" Tag="log">
+            <NavigationViewItem Content="ログ" Tag="log" AutomationProperties.AutomationId="NavLog">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="Library"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
-            <NavigationViewItem Content="拡張機能" Tag="ext">
+            <NavigationViewItem Content="拡張機能" Tag="ext" AutomationProperties.AutomationId="NavExt">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="Admin"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
-            <NavigationViewItem Content="情報" Tag="about">
+            <NavigationViewItem Content="情報" Tag="about" AutomationProperties.AutomationId="NavAbout">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="Help"/>
                 </NavigationViewItem.Icon>
@@ -109,6 +110,7 @@
 
                         <!-- 右上に置く（ただし安全マージン付き） -->
                         <TextBox x:Name="SettingsSearchBoxWide"
+                             AutomationProperties.AutomationId="SettingsSearchBoxWide"
                              Grid.Row="0" Grid.Column="1"
                              MinWidth="260"
                              MaxWidth="420"
@@ -121,6 +123,7 @@
 
                         <!-- 狭いときはここに出す用（後述のVisualStateで切替） -->
                         <TextBox x:Name="SettingsSearchBoxNarrow"
+                             AutomationProperties.AutomationId="SettingsSearchBoxNarrow"
                              Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
                              Margin="0,10,0,0"
                              Padding="10,8"
@@ -159,7 +162,7 @@
                             <StackPanel Spacing="6">
                                 <TextBlock Text="起動時にトレイへ最小化" Style="{StaticResource CardTitleStyle}"/>
                                 <TextBlock Text="起動時にメインウィンドウを表示せず、トレイ常駐で開始します。" Style="{StaticResource CardDescStyle}"/>
-                                <ToggleSwitch x:Name="SwStartMinToTray" Toggled="AnySetting_Toggled"/>
+                                <ToggleSwitch x:Name="SwStartMinToTray" AutomationProperties.AutomationId="SwStartMinToTray" Toggled="AnySetting_Toggled"/>
                             </StackPanel>
                         </Border>
 
@@ -167,7 +170,7 @@
                             <StackPanel Spacing="6">
                                 <TextBlock Text="×ボタンで終了せずトレイへ最小化" Style="{StaticResource CardTitleStyle}"/>
                                 <TextBlock Text="ウィンドウを閉じる操作を、終了ではなくトレイ最小化として扱います。" Style="{StaticResource CardDescStyle}"/>
-                                <ToggleSwitch x:Name="SwCloseMinToTray" Toggled="AnySetting_Toggled"/>
+                                <ToggleSwitch x:Name="SwCloseMinToTray" AutomationProperties.AutomationId="SwCloseMinToTray" Toggled="AnySetting_Toggled"/>
                             </StackPanel>
                         </Border>
 
@@ -175,8 +178,8 @@
                             <StackPanel Spacing="6">
                                 <TextBlock Text="Windows 起動時に自動起動" Style="{StaticResource CardTitleStyle}"/>
                                 <TextBlock Text="ユーザーのサインイン時に Atsumare を自動起動します。" Style="{StaticResource CardDescStyle}"/>
-                                <ToggleSwitch x:Name="SwLaunchAtStartup" Toggled="AnySetting_Toggled"/>
-                                <TextBlock x:Name="TbStartupStatus" Style="{StaticResource CardDescStyle}"/>
+                                <ToggleSwitch x:Name="SwLaunchAtStartup" AutomationProperties.AutomationId="SwLaunchAtStartup" Toggled="AnySetting_Toggled"/>
+                                <TextBlock x:Name="TbStartupStatus" AutomationProperties.AutomationId="TbStartupStatus" Style="{StaticResource CardDescStyle}"/>
                             </StackPanel>
                         </Border>
 
@@ -186,16 +189,16 @@
                                 <TextBlock Text="ピッカー表示/非表示のショートカットを設定します。" Style="{StaticResource CardDescStyle}"/>
 
                                 <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <CheckBox x:Name="CbModCtrl" Content="Ctrl" Checked="Hotkey_Changed" Unchecked="Hotkey_Changed"/>
-                                    <CheckBox x:Name="CbModAlt"  Content="Alt"  Checked="Hotkey_Changed" Unchecked="Hotkey_Changed"/>
-                                    <CheckBox x:Name="CbModShift" Content="Shift" Checked="Hotkey_Changed" Unchecked="Hotkey_Changed"/>
+                                    <CheckBox x:Name="CbModCtrl" AutomationProperties.AutomationId="CbModCtrl" Content="Ctrl" Checked="Hotkey_Changed" Unchecked="Hotkey_Changed"/>
+                                    <CheckBox x:Name="CbModAlt"  AutomationProperties.AutomationId="CbModAlt" Content="Alt"  Checked="Hotkey_Changed" Unchecked="Hotkey_Changed"/>
+                                    <CheckBox x:Name="CbModShift" AutomationProperties.AutomationId="CbModShift" Content="Shift" Checked="Hotkey_Changed" Unchecked="Hotkey_Changed"/>
                                     <!--<CheckBox x:Name="CbModWin"  Content="Win"  Checked="Hotkey_Changed" Unchecked="Hotkey_Changed"/> -->
                                 </StackPanel>
 
                                 <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                                     <TextBlock Text="キー" VerticalAlignment="Center"/>
-                                    <ComboBox x:Name="CbHotkeyKey" Width="220" SelectionChanged="Hotkey_Changed"/>
-                                    <TextBlock x:Name="TbHotkeyPreview" VerticalAlignment="Center" Opacity="0.8"/>
+                                    <ComboBox x:Name="CbHotkeyKey" AutomationProperties.AutomationId="CbHotkeyKey" Width="220" SelectionChanged="Hotkey_Changed"/>
+                                    <TextBlock x:Name="TbHotkeyPreview" AutomationProperties.AutomationId="TbHotkeyPreview" VerticalAlignment="Center" Opacity="0.8"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
@@ -206,7 +209,7 @@
                             <StackPanel Spacing="6">
                                 <TextBlock Text="移動時オーバーレイを表示" Style="{StaticResource CardTitleStyle}"/>
                                 <TextBlock Text="ウィンドウ移動中にオーバーレイを表示します。問題切り分け用にOFF推奨の場合があります。" Style="{StaticResource CardDescStyle}"/>
-                                <ToggleSwitch x:Name="SwShowOverlay" Toggled="AnySetting_Toggled"/>
+                                <ToggleSwitch x:Name="SwShowOverlay" AutomationProperties.AutomationId="SwShowOverlay" Toggled="AnySetting_Toggled"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -216,7 +219,7 @@
                             <StackPanel Spacing="6">
                                 <TextBlock Text="除外プロセス名" Style="{StaticResource CardTitleStyle}"/>
                                 <TextBlock Text="一覧に出したくないプロセス名をカンマ区切りで指定します。（例: explorer, obs64）" Style="{StaticResource CardDescStyle}"/>
-                                <TextBox x:Name="TbExcludeCsv" TextChanged="AnySetting_TextChanged"/>
+                                <TextBox x:Name="TbExcludeCsv" AutomationProperties.AutomationId="TbExcludeCsv" TextChanged="AnySetting_TextChanged"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -226,14 +229,14 @@
                             <StackPanel Spacing="6">
                                 <TextBlock Text="詳細ログを有効化" Style="{StaticResource CardTitleStyle}"/>
                                 <TextBlock Text="診断用のログ出力を増やします。通常はOFFで問題ありません。" Style="{StaticResource CardDescStyle}"/>
-                                <ToggleSwitch x:Name="SwVerboseLog" Toggled="AnySetting_Toggled"/>
+                                <ToggleSwitch x:Name="SwVerboseLog" AutomationProperties.AutomationId="SwVerboseLog" Toggled="AnySetting_Toggled"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource CardBorderStyle}" Tag="ログ フォルダ log folder">
                             <StackPanel Spacing="6">
                                 <TextBlock Text="ログフォルダを開く" Style="{StaticResource CardTitleStyle}"/>
                                 <TextBlock Text="%LocalAppData%\Atsumare\logs にログファイルが保存されます。" Style="{StaticResource CardDescStyle}"/>
-                                <Button Content="フォルダを開く" Click="OpenLogFolder_Click"/>
+                                <Button Content="フォルダを開く" AutomationProperties.AutomationId="OpenLogFolderButton" Click="OpenLogFolder_Click"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

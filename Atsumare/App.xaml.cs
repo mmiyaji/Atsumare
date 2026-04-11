@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -111,14 +112,15 @@ namespace Atsumare
 
         protected override async void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
+            var launchArgs = Environment.GetCommandLineArgs().Skip(1).ToArray();
             _uiQueue = DispatcherQueue.GetForCurrentThread();
             _showListenCts = new CancellationTokenSource();
 
             RegisterGlobalExceptionHandlers();
 
             _single = new SingleInstanceManager(
-                mutexName: @"Global\Atsumare_Mutex_v1",
-                signalName: @"Global\Atsumare_ShowSignal_v1"
+                mutexName: E2ETestMode.GetScopedKernelObjectName(@"Global\Atsumare_Mutex_v1"),
+                signalName: E2ETestMode.GetScopedKernelObjectName(@"Global\Atsumare_ShowSignal_v1")
             );
 
             // 2個目は通知して終了（ここではロード等しない）
@@ -140,12 +142,14 @@ namespace Atsumare
             }
 
             // ★設定からホットキー登録（固定値はやめる）
-            ApplyHotkeyFromSettings();
+            if (!E2ETestMode.IsEnabled)
+                ApplyHotkeyFromSettings();
 
             // ★設定変更で再登録（任意だが推奨）
             SettingsStore.SettingsChanged += (_, __) =>
             {
-                _uiQueue?.TryEnqueue(() => ApplyHotkeyFromSettings());
+                if (!E2ETestMode.IsEnabled)
+                    _uiQueue?.TryEnqueue(() => ApplyHotkeyFromSettings());
             };
 
             _ = WaitForExternalShowRequestsAsync(_showListenCts.Token);
@@ -154,11 +158,14 @@ namespace Atsumare
             _keepAlive.Activate();
             WindowHider.HideAndRemoveFromAltTab(_keepAlive);
 
-            _tray = new TrayIconHost(
-                onShow: () => Interlocked.Exchange(ref _showRequested, 1),
-                onExit: () => { _uiQueue?.TryEnqueue(() => ExitApplication()); }
-            );
-            _tray.Create();
+            if (!E2ETestMode.IsEnabled)
+            {
+                _tray = new TrayIconHost(
+                    onShow: () => Interlocked.Exchange(ref _showRequested, 1),
+                    onExit: () => { _uiQueue?.TryEnqueue(() => ExitApplication()); }
+                );
+                _tray.Create();
+            }
 
             var dq = DispatcherQueue.GetForCurrentThread();
             _pollTimer = dq.CreateTimer();
@@ -174,8 +181,11 @@ namespace Atsumare
             };
             _pollTimer.Start();
 
-            // StartMinimizedToTray が false のとき、起動直後にピッカーを表示する
-            if (!SettingsStore.Current.StartMinimizedToTray)
+            if (launchArgs.Contains("--settings", StringComparer.OrdinalIgnoreCase))
+            {
+                dq.TryEnqueue(() => ShowSettingsOnUI());
+            }
+            else if (launchArgs.Contains("--show-picker", StringComparer.OrdinalIgnoreCase) || !SettingsStore.Current.StartMinimizedToTray)
             {
                 dq.TryEnqueue(() => ShowPickerOnAllMonitors());
             }
@@ -240,7 +250,7 @@ namespace Atsumare
                 {
                     foreach (var w in OpenWindows.ToArray())
                     {
-                        try { w.Activate(); } catch { }
+                        try { w.ActivateAndFocus(); } catch { }
                     }
                     return;
                 }
@@ -399,7 +409,7 @@ namespace Atsumare
             {
                 foreach (var w in OpenWindows.ToArray())
                 {
-                    try { w.Activate(); } catch { }
+                    try { w.ActivateAndFocus(); } catch { }
                 }
                 return;
             }
@@ -421,7 +431,7 @@ namespace Atsumare
                     // ★ちらつき対策：Activate前に Win32 で配置
                     w.PrePositionToMonitorCenter(mon, 820, 540);
 
-                    w.Activate();
+                    w.ActivateAndFocus();
                 }
                 catch (Exception ex)
                 {

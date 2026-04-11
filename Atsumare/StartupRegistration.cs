@@ -24,6 +24,9 @@ internal static class StartupRegistration
 
     internal static async Task<StartupRegistrationStatus> GetStatusAsync()
     {
+        if (E2ETestMode.IsEnabled)
+            return StartupRegistrationStatus.Unsupported;
+
         if (IsPackaged())
             return await GetPackagedStatusAsync();
 
@@ -32,6 +35,9 @@ internal static class StartupRegistration
 
     internal static async Task<StartupRegistrationStatus> SetEnabledAsync(bool enabled)
     {
+        if (E2ETestMode.IsEnabled)
+            return StartupRegistrationStatus.Unsupported;
+
         if (IsPackaged())
             return await SetPackagedEnabledAsync(enabled);
 
