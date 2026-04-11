@@ -9,6 +9,7 @@
   <data name="MainWindow.SettingsText.Text" xml:space="preserve"><value>Settings</value></data>
   <data name="MainWindow.MoveOverlayText.Text" xml:space="preserve"><value>Moving...</value></data>
   <data name="MainWindow.AppVersionFormat" xml:space="preserve"><value>Atsumare v{0}</value></data>
+  <data name="MainWindow.StartupSplashText.Text" xml:space="preserve"><value>Loading apps...</value></data>
 
   <data name="SettingsWindow.Title" xml:space="preserve"><value>Settings</value></data>
   <data name="SettingsWindow.NavGeneral.Content" xml:space="preserve"><value>General</value></data>
@@ -40,8 +41,6 @@
   <data name="SettingsWindow.BtnCaptureHotkey.Content" xml:space="preserve"><value>Record shortcut</value></data>
   <data name="SettingsWindow.BtnResetHotkey.Content" xml:space="preserve"><value>Reset to default</value></data>
 
-  <data name="SettingsWindow.MoveOverlayTitle.Text" xml:space="preserve"><value>Show overlay while moving</value></data>
-  <data name="SettingsWindow.MoveOverlayDesc.Text" xml:space="preserve"><value>Show an overlay while windows are being moved. Turning this off can help troubleshooting.</value></data>
 
   <data name="SettingsWindow.ExcludeProcessTitle.Text" xml:space="preserve"><value>Excluded process names</value></data>
   <data name="SettingsWindow.ExcludeProcessDesc.Text" xml:space="preserve"><value>Enter process names to hide from the list, separated by commas. Example: explorer, obs64</value></data>
@@ -56,6 +55,8 @@
   <data name="SettingsWindow.ExtensionsDesc.Text" xml:space="preserve"><value>Future capabilities such as move rules or app integrations can be added here.</value></data>
 
   <data name="SettingsWindow.AboutAppDesc.Text" xml:space="preserve"><value>Tool for moving windows between displays.</value></data>
+  <data name="SettingsWindow.AboutWorkflowDesc.Text" xml:space="preserve"><value>Atsumare detects desktop apps that are already open, groups related windows into a single tile when possible, and lets you move that app's windows to the current monitor with one action.</value></data>
+  <data name="SettingsWindow.AboutPrivacyDesc.Text" xml:space="preserve"><value>Window titles, process paths, and icon data are inspected only on the local device to render the picker and perform the requested move. The app does not send that information to external services.</value></data>
   <data name="SettingsWindow.SupportTitle.Text" xml:space="preserve"><value>Support</value></data>
   <data name="SettingsWindow.SupportDesc.Text" xml:space="preserve"><value>Open the support page, terms of use, privacy policy, and repository.</value></data>
   <data name="SettingsWindow.TermsTitle.Text" xml:space="preserve"><value>Terms summary</value></data>

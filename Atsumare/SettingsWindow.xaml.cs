@@ -109,8 +109,6 @@ public sealed partial class SettingsWindow : Window
         TbHotkeyKeyLabel.Text = AppStrings.Get("SettingsWindow.HotkeyKeyLabel.Text");
         BtnCaptureHotkey.Content = AppStrings.Get("SettingsWindow.BtnCaptureHotkey.Content");
         BtnResetHotkey.Content = AppStrings.Get("SettingsWindow.BtnResetHotkey.Content");
-        TbMoveOverlayTitle.Text = AppStrings.Get("SettingsWindow.MoveOverlayTitle.Text");
-        TbMoveOverlayDesc.Text = AppStrings.Get("SettingsWindow.MoveOverlayDesc.Text");
         TbExcludeProcessTitle.Text = AppStrings.Get("SettingsWindow.ExcludeProcessTitle.Text");
         TbExcludeProcessDesc.Text = AppStrings.Get("SettingsWindow.ExcludeProcessDesc.Text");
         TbVerboseLogTitle.Text = AppStrings.Get("SettingsWindow.VerboseLogTitle.Text");
@@ -121,6 +119,8 @@ public sealed partial class SettingsWindow : Window
         TbExtensionsTitle.Text = AppStrings.Get("SettingsWindow.ExtensionsTitle.Text");
         TbExtensionsDesc.Text = AppStrings.Get("SettingsWindow.ExtensionsDesc.Text");
         TbAboutAppDesc.Text = AppStrings.Get("SettingsWindow.AboutAppDesc.Text");
+        TbAboutWorkflowDesc.Text = AppStrings.Get("SettingsWindow.AboutWorkflowDesc.Text");
+        TbAboutPrivacyDesc.Text = AppStrings.Get("SettingsWindow.AboutPrivacyDesc.Text");
         TbSupportTitle.Text = AppStrings.Get("SettingsWindow.SupportTitle.Text");
         TbSupportDesc.Text = AppStrings.Get("SettingsWindow.SupportDesc.Text");
         TbTermsTitle.Text = AppStrings.Get("SettingsWindow.TermsTitle.Text");
@@ -352,7 +352,11 @@ public sealed partial class SettingsWindow : Window
         _isLoading = true;
         try
         {
-            var s = await SettingsStore.LoadAsync();
+            var settingsTask = SettingsStore.LoadAsync();
+            var startupTask = StartupRegistration.GetStatusAsync();
+            await Task.WhenAll(settingsTask, startupTask);
+
+            var s = settingsTask.Result;
 
             var ensured = SettingsWindowLogic.EnsureSelfInExcludeCsv(
                 s.ExcludeProcessNamesCsv,
@@ -363,13 +367,12 @@ public sealed partial class SettingsWindow : Window
                 await SettingsStore.SaveAsync();
             }
 
-            var startupStatus = await StartupRegistration.GetStatusAsync();
+            var startupStatus = startupTask.Result;
 
             SwStartMinToTray.IsOn = s.StartMinimizedToTray;
             SelectUiLanguage(s.UiLanguage);
             UpdateStartupToggle(startupStatus);
             SwCloseMinToTray.IsOn = s.CloseButtonMinimizesToTray;
-            SwShowOverlay.IsOn = s.ShowMoveOverlay;
             TbExcludeCsv.Text = s.ExcludeProcessNamesCsv ?? "";
             SwVerboseLog.IsOn = s.EnableVerboseLog;
             s.LaunchAtStartup = SwLaunchAtStartup.IsOn;
@@ -586,7 +589,6 @@ public sealed partial class SettingsWindow : Window
                 s.LaunchAtStartup = SwLaunchAtStartup.IsOn;
             }
             s.CloseButtonMinimizesToTray = SwCloseMinToTray.IsOn;
-            s.ShowMoveOverlay = SwShowOverlay.IsOn;
             s.EnableVerboseLog = SwVerboseLog.IsOn;
 
             await SettingsStore.SaveAsync();

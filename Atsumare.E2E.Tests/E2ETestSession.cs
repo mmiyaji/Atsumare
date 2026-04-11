@@ -12,6 +12,7 @@ internal sealed class E2ETestSession : IDisposable
 {
     private readonly string _instanceId = Guid.NewGuid().ToString("N");
     private readonly string _settingsPath;
+    private readonly string _logDirectory;
     private readonly HashSet<int> _trackedProcessIds = new();
 
     private Process? _process;
@@ -21,6 +22,8 @@ internal sealed class E2ETestSession : IDisposable
         TestRootDirectory = Path.Combine(Path.GetTempPath(), "Atsumare.E2E", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(TestRootDirectory);
         _settingsPath = Path.Combine(TestRootDirectory, "settings.json");
+        _logDirectory = Path.Combine(TestRootDirectory, "logs");
+        Directory.CreateDirectory(_logDirectory);
         Automation = new UIA3Automation();
     }
 
@@ -29,6 +32,10 @@ internal sealed class E2ETestSession : IDisposable
     public string TestRootDirectory { get; }
 
     public string SettingsPath => _settingsPath;
+
+    public string LogDirectory => _logDirectory;
+
+    public string LogPath => Path.Combine(_logDirectory, $"app-{DateTime.Now:yyyyMMdd}.log");
 
     public string AppExePath => ResolveAppExePath();
 
@@ -48,13 +55,22 @@ internal sealed class E2ETestSession : IDisposable
         var psi = new ProcessStartInfo
         {
             FileName = AppExePath,
-            Arguments = string.Join(" ", args.Select(QuoteArgument)),
             WorkingDirectory = Path.GetDirectoryName(AppExePath)!,
             UseShellExecute = false,
         };
         psi.Environment["ATSUMARE_E2E"] = "1";
         psi.Environment["ATSUMARE_E2E_INSTANCE_ID"] = _instanceId;
         psi.Environment["ATSUMARE_SETTINGS_PATH"] = _settingsPath;
+        psi.Environment["ATSUMARE_LOG_DIR"] = _logDirectory;
+        psi.ArgumentList.Add("--e2e");
+        psi.ArgumentList.Add("--e2e-instance-id");
+        psi.ArgumentList.Add(_instanceId);
+        psi.ArgumentList.Add("--e2e-settings-path");
+        psi.ArgumentList.Add(_settingsPath);
+        psi.ArgumentList.Add("--e2e-log-dir");
+        psi.ArgumentList.Add(_logDirectory);
+        foreach (var arg in args)
+            psi.ArgumentList.Add(arg);
 
         var bootstrapProcess = Process.Start(psi) ?? throw new InvalidOperationException("Failed to start Atsumare.");
         _process = ResolveLaunchedProcess(bootstrapProcess, existingProcessIds);
@@ -69,6 +85,39 @@ internal sealed class E2ETestSession : IDisposable
 
         return result.Result?.AsWindow()
             ?? throw new InvalidOperationException($"Visible window '{title ?? "<any>"}' did not appear.");
+    }
+
+    public Window WaitForWindowContaining(string automationId)
+    {
+        var result = Retry.WhileNull(
+            () =>
+            {
+                foreach (var element in Automation.GetDesktop().FindAllChildren())
+                {
+                    try
+                    {
+                        if (element.ControlType != ControlType.Window)
+                            continue;
+
+                        var bounds = element.BoundingRectangle;
+                        if (bounds.Width <= 0 || bounds.Height <= 0)
+                            continue;
+
+                        if (element.FindFirstDescendant(Automation.ConditionFactory.ByAutomationId(automationId)) != null)
+                            return element.AsWindow();
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                return null;
+            },
+            timeout: TimeSpan.FromSeconds(15),
+            interval: TimeSpan.FromMilliseconds(100));
+
+        return result.Result
+            ?? throw new InvalidOperationException($"Visible window containing AutomationId '{automationId}' did not appear.");
     }
 
     public AutomationElement FindById(AutomationElement root, string automationId)
@@ -86,10 +135,21 @@ internal sealed class E2ETestSession : IDisposable
     public AutomationElement FindByIdInProcess(string automationId)
     {
         var result = Retry.WhileNull(
-            () => Automation.GetDesktop()
-                .FindAllDescendants()
-                .Where(x => x.Properties.ProcessId.TryGetValue(out var pid) && pid == _process?.Id)
-                .FirstOrDefault(x => string.Equals(x.AutomationId, automationId, StringComparison.Ordinal)),
+            () =>
+            {
+                var window = FindVisibleWindow(null);
+                if (window == null)
+                    return null;
+
+                try
+                {
+                    return window.FindFirstDescendant(Automation.ConditionFactory.ByAutomationId(automationId));
+                }
+                catch
+                {
+                    return null;
+                }
+            },
             timeout: TimeSpan.FromSeconds(10),
             interval: TimeSpan.FromMilliseconds(100));
 
@@ -131,6 +191,17 @@ internal sealed class E2ETestSession : IDisposable
             throw new InvalidOperationException("Timed out waiting for settings.json to update.");
     }
 
+    public void WaitForLogEntry(Func<string, bool> predicate)
+    {
+        var result = Retry.WhileFalse(
+            () => File.Exists(LogPath) && predicate(File.ReadAllText(LogPath)),
+            timeout: TimeSpan.FromSeconds(10),
+            interval: TimeSpan.FromMilliseconds(100));
+
+        if (!result.Success)
+            throw new InvalidOperationException("Timed out waiting for application log output.");
+    }
+
     public void Dispose()
     {
         DisposeProcess();
@@ -145,9 +216,6 @@ internal sealed class E2ETestSession : IDisposable
         {
         }
     }
-
-    private static string QuoteArgument(string value) =>
-        value.Contains(' ') ? $"\"{value}\"" : value;
 
     private void DisposeProcess()
     {
@@ -207,6 +275,13 @@ internal sealed class E2ETestSession : IDisposable
         var result = Retry.WhileNull(
             () =>
             {
+                bootstrapProcess.Refresh();
+                if (!bootstrapProcess.HasExited)
+                {
+                    _trackedProcessIds.Add(bootstrapProcess.Id);
+                    return bootstrapProcess;
+                }
+
                 var candidates = Process.GetProcessesByName(processName)
                     .Where(x => !existingProcessIds.Contains(x.Id))
                     .OrderByDescending(GetSafeStartTimeUtc)
@@ -218,13 +293,6 @@ internal sealed class E2ETestSession : IDisposable
                         _trackedProcessIds.Add(candidate.Id);
 
                     return candidates[0];
-                }
-
-                bootstrapProcess.Refresh();
-                if (!bootstrapProcess.HasExited)
-                {
-                    _trackedProcessIds.Add(bootstrapProcess.Id);
-                    return bootstrapProcess;
                 }
 
                 return null;

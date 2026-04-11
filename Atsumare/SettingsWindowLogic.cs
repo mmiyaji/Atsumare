@@ -35,8 +35,16 @@ internal static class SettingsWindowLogic
 
     internal static string EnsureSelfInExcludeCsv(string? csv, string selfProcessName)
     {
-        var normalized = NormalizeExcludeCsv(csv);
-        return !string.IsNullOrWhiteSpace(normalized) ? normalized : selfProcessName;
+        var parts = (csv ?? "")
+            .Split(new[] { ',', '\n', '\r', ';' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim())
+            .Where(x => x.Length > 0)
+            .ToList();
+
+        if (!parts.Contains(selfProcessName, StringComparer.OrdinalIgnoreCase))
+            parts.Add(selfProcessName);
+
+        return string.Join(", ", parts.Distinct(StringComparer.OrdinalIgnoreCase));
     }
 
     internal static int NormalizeHotkeyModifiers(int modifiers) =>

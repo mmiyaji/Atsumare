@@ -39,6 +39,8 @@ namespace Atsumare
         private static int _fatalHandling; // 再入防止
         private bool _globalExceptionHandlersRegistered;
         private const string PendingOpenSettingsKey = "PendingOpenSettingsSection";
+        private int _lastAppliedHotkeyModifiers = int.MinValue;
+        private int _lastAppliedHotkeyVirtualKey = int.MinValue;
 
         public App()
         {
@@ -221,6 +223,9 @@ namespace Atsumare
                 vk = 0x20;              // Space
             }
 
+            if (_lastAppliedHotkeyModifiers == mods && _lastAppliedHotkeyVirtualKey == vk)
+                return;
+
             try
             {
                 // ★新しいホットキーを先に作って登録（成功したら差し替える）
@@ -234,6 +239,8 @@ namespace Atsumare
                 // 成功したので旧を破棄して差し替え
                 _hotkey?.Dispose();
                 _hotkey = newHotkey;
+                _lastAppliedHotkeyModifiers = mods;
+                _lastAppliedHotkeyVirtualKey = vk;
 
                 LogVerbose($"[HOTKEY] Registered mods=0x{mods:X} vk=0x{vk:X}");
             }
@@ -538,6 +545,10 @@ namespace Atsumare
 
         private static string GetLogDir()
         {
+            var e2eOverride = E2ETestMode.GetLogDirOverride();
+            if (!string.IsNullOrWhiteSpace(e2eOverride))
+                return e2eOverride;
+
             if (IsPackaged())
             {
                 // MSIX: Packages\<PFN>\LocalState\logs

@@ -198,15 +198,7 @@
                         </Border>
                     </StackPanel>
 
-                    <StackPanel x:Name="PanelMove" Spacing="12" Visibility="Collapsed">
-                        <Border Style="{StaticResource CardBorderStyle}" Tag="移動 オーバーレイ overlay move">
-                            <StackPanel Spacing="6">
-                                <TextBlock x:Name="TbMoveOverlayTitle" x:Uid="SettingsWindow.MoveOverlayTitle" Text="Show overlay while moving" Style="{StaticResource CardTitleStyle}"/>
-                                <TextBlock x:Name="TbMoveOverlayDesc" x:Uid="SettingsWindow.MoveOverlayDesc" Text="Show an overlay while windows are being moved. Turning this off can help troubleshooting." Style="{StaticResource CardDescStyle}"/>
-                                <ToggleSwitch x:Name="SwShowOverlay" AutomationProperties.AutomationId="SwShowOverlay" Toggled="AnySetting_Toggled"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
+                    <StackPanel x:Name="PanelMove" Spacing="12" Visibility="Collapsed"/>
 
                     <StackPanel x:Name="PanelAppList" Spacing="12" Visibility="Collapsed">
                         <Border Style="{StaticResource CardBorderStyle}" Tag="除外 プロセス app list filter exclude process">
@@ -249,6 +241,8 @@
                             <StackPanel Spacing="6">
                                 <TextBlock Text="Atsumare" Style="{StaticResource CardTitleStyle}"/>
                                 <TextBlock x:Name="TbAboutAppDesc" x:Uid="SettingsWindow.AboutAppDesc" Text="Tool for moving windows between displays." Style="{StaticResource CardDescStyle}"/>
+                                <TextBlock x:Name="TbAboutWorkflowDesc" TextWrapping="Wrap" Style="{StaticResource CardDescStyle}"/>
+                                <TextBlock x:Name="TbAboutPrivacyDesc" TextWrapping="Wrap" Style="{StaticResource CardDescStyle}"/>
                                 <TextBlock x:Name="TbAboutAuthor" AutomationProperties.AutomationId="TbAboutAuthor"/>
                                 <TextBlock x:Name="TbAboutCopyright" AutomationProperties.AutomationId="TbAboutCopyright"/>
                                 <TextBlock x:Name="TbAboutVersion" AutomationProperties.AutomationId="TbAboutVersion"/>

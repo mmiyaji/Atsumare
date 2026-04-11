@@ -19,6 +19,13 @@ public sealed class SettingsWindowLogicTests
     }
 
     [Fact]
+    public void EnsureSelfInExcludeCsv_AppendsSelfProcessWhenNeeded()
+    {
+        var actual = SettingsWindowLogic.EnsureSelfInExcludeCsv("explorer, slack", "Atsumare");
+        Assert.Equal("explorer, slack, Atsumare", actual);
+    }
+
+    [Fact]
     public void NormalizeHotkeyModifiers_UsesDefaultWhenEmpty()
     {
         var actual = SettingsWindowLogic.NormalizeHotkeyModifiers(0);

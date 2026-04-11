@@ -9,6 +9,7 @@
   <data name="MainWindow.SettingsText.Text" xml:space="preserve"><value>設定</value></data>
   <data name="MainWindow.MoveOverlayText.Text" xml:space="preserve"><value>移動中...</value></data>
   <data name="MainWindow.AppVersionFormat" xml:space="preserve"><value>Atsumare v{0}</value></data>
+  <data name="MainWindow.StartupSplashText.Text" xml:space="preserve"><value>アプリを読み込んでいます...</value></data>
 
   <data name="SettingsWindow.Title" xml:space="preserve"><value>設定</value></data>
   <data name="SettingsWindow.NavGeneral.Content" xml:space="preserve"><value>全般</value></data>
@@ -41,8 +42,6 @@
   <data name="SettingsWindow.BtnCaptureHotkey.Content" xml:space="preserve"><value>ショートカットを記録</value></data>
   <data name="SettingsWindow.BtnResetHotkey.Content" xml:space="preserve"><value>既定に戻す</value></data>
 
-  <data name="SettingsWindow.MoveOverlayTitle.Text" xml:space="preserve"><value>移動中にオーバーレイを表示</value></data>
-  <data name="SettingsWindow.MoveOverlayDesc.Text" xml:space="preserve"><value>ウィンドウ移動中にオーバーレイを表示します。問題調査時はオフにすると切り分けしやすくなります。</value></data>
 
   <data name="SettingsWindow.ExcludeProcessTitle.Text" xml:space="preserve"><value>除外するプロセス名</value></data>
   <data name="SettingsWindow.ExcludeProcessDesc.Text" xml:space="preserve"><value>一覧に表示したくないプロセス名をカンマ区切りで入力します。例: explorer, obs64</value></data>
@@ -56,7 +55,9 @@
   <data name="SettingsWindow.ExtensionsTitle.Text" xml:space="preserve"><value>拡張機能</value></data>
   <data name="SettingsWindow.ExtensionsDesc.Text" xml:space="preserve"><value>将来の移動ルールやアプリ連携などの機能をここに追加できます。</value></data>
 
-  <data name="SettingsWindow.AboutAppDesc.Text" xml:space="preserve"><value>ウィンドウをディスプレイ間で移動するためのツールです。</value></data>
+  <data name="SettingsWindow.AboutAppDesc.Text" xml:space="preserve"><value>ウィンドウをディスプレイ間で素早く移動するためのデスクトップツールです。</value></data>
+  <data name="SettingsWindow.AboutWorkflowDesc.Text" xml:space="preserve"><value>Atsumare はすでに起動しているデスクトップアプリを検出し、関連するウィンドウをできるだけ 1 つのタイルにまとめて、選んだアプリのウィンドウを現在のモニターへまとめて移動できます。</value></data>
+  <data name="SettingsWindow.AboutPrivacyDesc.Text" xml:space="preserve"><value>ウィンドウタイトル、プロセスパス、アイコン情報は、一覧表示と移動処理のために端末内でのみ参照されます。これらの情報を外部サービスへ送信することはありません。</value></data>
   <data name="SettingsWindow.SupportTitle.Text" xml:space="preserve"><value>サポート</value></data>
   <data name="SettingsWindow.SupportDesc.Text" xml:space="preserve"><value>サポートページ、利用規約、プライバシーポリシー、リポジトリを開きます。</value></data>
   <data name="SettingsWindow.TermsTitle.Text" xml:space="preserve"><value>利用規約の要約</value></data>

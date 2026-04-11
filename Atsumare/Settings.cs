@@ -13,9 +13,6 @@ public sealed class AtsumareSettings
     public int HotkeyModifiers { get; set; } = 0x0002 | 0x0001; // Ctrl + Alt
     public int HotkeyVirtualKey { get; set; } = 0x20; // Space
 
-    // Move / Overlay
-    public bool ShowMoveOverlay { get; set; } = false;
-
     // App list
     public string ExcludeProcessNamesCsv { get; set; } = "";
 
