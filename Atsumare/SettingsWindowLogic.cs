@@ -46,25 +46,25 @@ internal static class SettingsWindowLogic
     {
         if (virtualKey <= 0)
         {
-            message = "キーを選択してください。";
+            message = "SettingsWindowLogic.SelectKey";
             return false;
         }
 
         if (IsModifierKey(virtualKey))
         {
-            message = "Ctrl / Alt / Shift 単体はホットキーにできません。";
+            message = "SettingsWindowLogic.ModifierOnly";
             return false;
         }
 
         if (modifiers == 0)
         {
-            message = "Ctrl / Alt / Shift のいずれかを含めてください。";
+            message = "SettingsWindowLogic.RequireModifier";
             return false;
         }
 
         if ((modifiers & 0x0008) != 0 && virtualKey == 0x20)
         {
-            message = "Win + Space は Windows 予約のため使えません。";
+            message = "SettingsWindowLogic.WinSpaceReserved";
             return false;
         }
 

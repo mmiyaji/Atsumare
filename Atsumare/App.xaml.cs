@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Storage;
+using Windows.ApplicationModel;
 
 namespace Atsumare
 {
@@ -37,9 +38,11 @@ namespace Atsumare
         private static long _suppressAutoCloseUntilTick;
         private static int _fatalHandling; // 再入防止
         private bool _globalExceptionHandlersRegistered;
+        private const string PendingOpenSettingsKey = "PendingOpenSettingsSection";
 
         public App()
         {
+            AppLanguage.ApplyStartupOverride(SettingsStore.TryLoadUiLanguageOverride());
             this.InitializeComponent();
         }
 
@@ -115,6 +118,7 @@ namespace Atsumare
             var launchArgs = Environment.GetCommandLineArgs().Skip(1).ToArray();
             _uiQueue = DispatcherQueue.GetForCurrentThread();
             _showListenCts = new CancellationTokenSource();
+            var pendingSettingsSection = ConsumePendingOpenSettingsSection();
 
             RegisterGlobalExceptionHandlers();
 
@@ -135,6 +139,7 @@ namespace Atsumare
             try
             {
                 await SettingsStore.LoadAsync();
+                AppLanguage.Apply(SettingsStore.Current);
             }
             catch (Exception ex)
             {
@@ -181,7 +186,11 @@ namespace Atsumare
             };
             _pollTimer.Start();
 
-            if (launchArgs.Contains("--settings", StringComparer.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(pendingSettingsSection))
+            {
+                dq.TryEnqueue(() => ShowSettingsOnUI(pendingSettingsSection));
+            }
+            else if (launchArgs.Contains("--settings", StringComparer.OrdinalIgnoreCase))
             {
                 dq.TryEnqueue(() => ShowSettingsOnUI());
             }
@@ -274,6 +283,22 @@ namespace Atsumare
             {
                 ShowPickerOnAllMonitors();
             }
+        }
+
+        internal static void ReopenSettingsWindow(string? sectionTag = null)
+        {
+            if (Application.Current is not App app)
+                return;
+
+            app._uiQueue?.TryEnqueue(() => app.ReopenSettingsWindowOnUI(sectionTag));
+        }
+
+        internal static void RestartApplication(string? reopenSettingsSection = null)
+        {
+            if (Application.Current is not App app)
+                return;
+
+            app._uiQueue?.TryEnqueue(() => app.RestartApplicationOnUI(reopenSettingsSection));
         }
 
         internal static void CloseAllPickerWindows()
@@ -562,20 +587,29 @@ namespace Atsumare
             }
         }
 
-        private void ShowSettingsOnUI()
+        private void ShowSettingsOnUI(string? sectionTag = null)
         {
             try
             {
                 CloseAllPickerWindows();
                 if (_settingsWindow != null)
                 {
+                    if (!string.IsNullOrWhiteSpace(sectionTag))
+                        _settingsWindow.SelectSectionByTag(sectionTag);
                     _settingsWindow.Activate();
                     return;
                 }
 
-                _settingsWindow = new SettingsWindow();
-                _settingsWindow.Closed += (_, __) => _settingsWindow = null;
-                _settingsWindow.Activate();
+                var window = new SettingsWindow();
+                if (!string.IsNullOrWhiteSpace(sectionTag))
+                    window.SelectSectionByTag(sectionTag);
+                _settingsWindow = window;
+                window.Closed += (_, __) =>
+                {
+                    if (ReferenceEquals(_settingsWindow, window))
+                        _settingsWindow = null;
+                };
+                window.Activate();
             }
             catch (Exception ex)
             {
@@ -584,8 +618,105 @@ namespace Atsumare
             }
         }
 
+        private void ReopenSettingsWindowOnUI(string? sectionTag)
+        {
+            try
+            {
+                if (_settingsWindow != null)
+                {
+                    var oldWindow = _settingsWindow;
+                    _settingsWindow = null;
+                    oldWindow.Close();
+                }
+
+                var window = new SettingsWindow();
+                if (!string.IsNullOrWhiteSpace(sectionTag))
+                    window.SelectSectionByTag(sectionTag);
+
+                _settingsWindow = window;
+                window.Closed += (_, __) =>
+                {
+                    if (ReferenceEquals(_settingsWindow, window))
+                        _settingsWindow = null;
+                };
+                window.Activate();
+            }
+            catch (Exception ex)
+            {
+                LogException("ReopenSettingsWindowOnUI", ex);
+                _settingsWindow = null;
+            }
+        }
+
+        private void RestartApplicationOnUI(string? reopenSettingsSection)
+        {
+            try
+            {
+                SetPendingOpenSettingsSection(reopenSettingsSection);
+                if (IsPackaged())
+                {
+                    var familyName = Package.Current.Id.FamilyName;
+                    StartProcessSafe("explorer.exe", $"shell:AppsFolder\\{familyName}!App");
+                }
+                else
+                {
+                    var processPath = Environment.ProcessPath;
+                    if (!string.IsNullOrWhiteSpace(processPath))
+                        StartProcessSafe(processPath, "");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogException("RestartApplicationOnUI", ex);
+            }
+            finally
+            {
+                ExitApplication();
+            }
+        }
+
+        private static void SetPendingOpenSettingsSection(string? sectionTag)
+        {
+            try
+            {
+                var localSettings = ApplicationData.Current.LocalSettings;
+                if (string.IsNullOrWhiteSpace(sectionTag))
+                    localSettings.Values.Remove(PendingOpenSettingsKey);
+                else
+                    localSettings.Values[PendingOpenSettingsKey] = sectionTag;
+            }
+            catch { }
+        }
+
+        private static string? ConsumePendingOpenSettingsSection()
+        {
+            try
+            {
+                var localSettings = ApplicationData.Current.LocalSettings;
+                if (!localSettings.Values.TryGetValue(PendingOpenSettingsKey, out var value))
+                    return null;
+
+                localSettings.Values.Remove(PendingOpenSettingsKey);
+                return value as string;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static void StartProcessSafe(string fileName, string arguments)
+        {
+            var info = new System.Diagnostics.ProcessStartInfo(fileName)
+            {
+                UseShellExecute = true
+            };
+
+            if (!string.IsNullOrWhiteSpace(arguments))
+                info.Arguments = arguments;
+
+            System.Diagnostics.Process.Start(info);
+        }
+
     }
 }
-
-
-

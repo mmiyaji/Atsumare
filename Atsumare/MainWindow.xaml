@@ -10,9 +10,10 @@
             Background="Transparent">
 
         <Grid RowDefinitions="Auto,Auto,*,Auto"
-              Padding="16,18,16,0">
+              Padding="16,24,16,0">
 
-            <Grid Grid.Row="0">
+            <Grid Grid.Row="0"
+                  Margin="0,4,0,0">
                 <Border HorizontalAlignment="Left"
                         VerticalAlignment="Top"
                         Margin="0,-22,0,0"
@@ -28,17 +29,18 @@
                 </Border>
 
                 <TextBox x:Name="FilterBox"
+                         x:Uid="MainWindow.SearchBox"
                          AutomationProperties.AutomationId="FilterBox"
-                         PlaceholderText="アプリを検索..."
-                         FontSize="16"
-                         Height="44"
+                         PlaceholderText="Search apps..."
+                         FontSize="15"
+                         Height="40"
                          CornerRadius="12"
                          VerticalContentAlignment="Center"
-                         Padding="44,8,12,4"
+                         Padding="42,6,12,4"
                          TextChanged="FilterBox_TextChanged"/>
 
                 <Button Width="40"
-                        Height="36"
+                        Height="32"
                         Margin="6,0,6,0"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Center"
@@ -90,7 +92,7 @@
                 <GridView.ItemContainerStyle>
                     <Style TargetType="GridViewItem">
                         <Setter Property="Height" Value="144"/>
-                        <Setter Property="Margin" Value="4"/>
+                        <Setter Property="Margin" Value="4,7"/>
                         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                         <Setter Property="VerticalContentAlignment" Value="Stretch"/>
                         <Setter Property="CornerRadius" Value="14"/>
@@ -161,7 +163,7 @@
                         MinHeight="28">
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <FontIcon Glyph="&#xE713;" FontFamily="Segoe MDL2 Assets" FontSize="14" Opacity="0.85"/>
-                        <TextBlock Text="設定" FontSize="12" Opacity="0.9" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="SettingsButtonText" x:Uid="MainWindow.SettingsText" Text="Settings" FontSize="12" Opacity="0.9" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
             </Border>
@@ -186,7 +188,8 @@
                                       IsActive="False"
                                       HorizontalAlignment="Center"/>
                         <TextBlock x:Name="MoveOverlayText"
-                                   Text="移動中..."
+                                   x:Uid="MainWindow.MoveOverlayText"
+                                   Text="Moving..."
                                    FontSize="16"
                                    HorizontalAlignment="Center"/>
                     </StackPanel>

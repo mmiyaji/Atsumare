@@ -249,10 +249,10 @@ namespace Atsumare
             var hMenu = CreatePopupMenu();
             try
             {
-                AppendMenu(hMenu, MF_STRING, IDM_SHOW, "表示");
-                AppendMenu(hMenu, MF_STRING, IDM_SETTINGS, "設定...");
+                AppendMenu(hMenu, MF_STRING, IDM_SHOW, AppStrings.Get("Tray.Menu.Show"));
+                AppendMenu(hMenu, MF_STRING, IDM_SETTINGS, AppStrings.Get("Tray.Menu.Settings"));
                 AppendMenu(hMenu, MF_SEPARATOR, 0, null);
-                AppendMenu(hMenu, MF_STRING, IDM_EXIT, "終了");
+                AppendMenu(hMenu, MF_STRING, IDM_EXIT, AppStrings.Get("Tray.Menu.Exit"));
 
                 TrackPopupMenuEx(
                     hMenu,

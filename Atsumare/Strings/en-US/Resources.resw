@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, ...</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, ...</value></resheader>
+  <data name="MainWindow.Title" xml:space="preserve"><value>Atsumare</value></data>
+  <data name="MainWindow.SearchBox.PlaceholderText" xml:space="preserve"><value>Search apps...</value></data>
+  <data name="MainWindow.SettingsText.Text" xml:space="preserve"><value>Settings</value></data>
+  <data name="MainWindow.MoveOverlayText.Text" xml:space="preserve"><value>Moving...</value></data>
+  <data name="MainWindow.AppVersionFormat" xml:space="preserve"><value>Atsumare v{0}</value></data>
+
+  <data name="SettingsWindow.Title" xml:space="preserve"><value>Settings</value></data>
+  <data name="SettingsWindow.NavGeneral.Content" xml:space="preserve"><value>General</value></data>
+  <data name="SettingsWindow.NavMove.Content" xml:space="preserve"><value>Move</value></data>
+  <data name="SettingsWindow.NavAppList.Content" xml:space="preserve"><value>App List</value></data>
+  <data name="SettingsWindow.NavLog.Content" xml:space="preserve"><value>Log</value></data>
+  <data name="SettingsWindow.NavExt.Content" xml:space="preserve"><value>Extensions</value></data>
+  <data name="SettingsWindow.NavAbout.Content" xml:space="preserve"><value>About</value></data>
+  <data name="SettingsWindow.NavLicenses.Content" xml:space="preserve"><value>Licenses</value></data>
+  <data name="SettingsWindow.PageTitle.Text" xml:space="preserve"><value>General</value></data>
+  <data name="SettingsWindow.PageSubtitle.Text" xml:space="preserve"><value>Configure the basic app behavior.</value></data>
+  <data name="SettingsWindow.LanguageTitle.Text" xml:space="preserve"><value>Display language</value></data>
+  <data name="SettingsWindow.LanguageDesc.Text" xml:space="preserve"><value>Choose the language used by the app. English is used as the fallback language.</value></data>
+  <data name="SettingsWindow.LanguageLabel.Text" xml:space="preserve"><value>Language</value></data>
+  <data name="SettingsWindow.UiLanguage.System.Content" xml:space="preserve"><value>System default</value></data>
+  <data name="SettingsWindow.UiLanguage.English.Content" xml:space="preserve"><value>English</value></data>
+  <data name="SettingsWindow.UiLanguage.Japanese.Content" xml:space="preserve"><value>Japanese</value></data>
+  <data name="SettingsWindow.LanguageSaved" xml:space="preserve"><value>Language saved. Restarting the app to apply the change.</value></data>
+
+  <data name="SettingsWindow.GeneralStartMinTitle.Text" xml:space="preserve"><value>Start minimized to tray</value></data>
+  <data name="SettingsWindow.GeneralStartMinDesc.Text" xml:space="preserve"><value>Start in the system tray without showing the main window.</value></data>
+  <data name="SettingsWindow.GeneralCloseMinTitle.Text" xml:space="preserve"><value>Minimize to tray instead of closing</value></data>
+  <data name="SettingsWindow.GeneralCloseMinDesc.Text" xml:space="preserve"><value>Treat the close button as minimize-to-tray instead of exit.</value></data>
+  <data name="SettingsWindow.GeneralLaunchStartupTitle.Text" xml:space="preserve"><value>Launch at Windows sign-in</value></data>
+  <data name="SettingsWindow.GeneralLaunchStartupDesc.Text" xml:space="preserve"><value>Automatically start Atsumare when the user signs in.</value></data>
+  <data name="SettingsWindow.HotkeyTitle.Text" xml:space="preserve"><value>Hotkey</value></data>
+  <data name="SettingsWindow.HotkeyDesc.Text" xml:space="preserve"><value>Choose the shortcut that shows or hides the picker.</value></data>
+  <data name="SettingsWindow.HotkeyKeyLabel.Text" xml:space="preserve"><value>Key</value></data>
+  <data name="SettingsWindow.BtnCaptureHotkey.Content" xml:space="preserve"><value>Record shortcut</value></data>
+  <data name="SettingsWindow.BtnResetHotkey.Content" xml:space="preserve"><value>Reset to default</value></data>
+
+  <data name="SettingsWindow.MoveOverlayTitle.Text" xml:space="preserve"><value>Show overlay while moving</value></data>
+  <data name="SettingsWindow.MoveOverlayDesc.Text" xml:space="preserve"><value>Show an overlay while windows are being moved. Turning this off can help troubleshooting.</value></data>
+
+  <data name="SettingsWindow.ExcludeProcessTitle.Text" xml:space="preserve"><value>Excluded process names</value></data>
+  <data name="SettingsWindow.ExcludeProcessDesc.Text" xml:space="preserve"><value>Enter process names to hide from the list, separated by commas. Example: explorer, obs64</value></data>
+
+  <data name="SettingsWindow.VerboseLogTitle.Text" xml:space="preserve"><value>Enable verbose logs</value></data>
+  <data name="SettingsWindow.VerboseLogDesc.Text" xml:space="preserve"><value>Increase diagnostic logging. This is usually not needed in normal use.</value></data>
+  <data name="SettingsWindow.LogFolderTitle.Text" xml:space="preserve"><value>Open log folder</value></data>
+  <data name="SettingsWindow.LogFolderDesc.Text" xml:space="preserve"><value>Log files are stored under %LocalAppData%\Atsumare\logs.</value></data>
+  <data name="SettingsWindow.OpenLogFolderButton.Content" xml:space="preserve"><value>Open folder</value></data>
+
+  <data name="SettingsWindow.ExtensionsTitle.Text" xml:space="preserve"><value>Extensions</value></data>
+  <data name="SettingsWindow.ExtensionsDesc.Text" xml:space="preserve"><value>Future capabilities such as move rules or app integrations can be added here.</value></data>
+
+  <data name="SettingsWindow.AboutAppDesc.Text" xml:space="preserve"><value>Tool for moving windows between displays.</value></data>
+  <data name="SettingsWindow.SupportTitle.Text" xml:space="preserve"><value>Support</value></data>
+  <data name="SettingsWindow.SupportDesc.Text" xml:space="preserve"><value>Open the support page, terms of use, privacy policy, and repository.</value></data>
+  <data name="SettingsWindow.TermsTitle.Text" xml:space="preserve"><value>Terms summary</value></data>
+  <data name="SettingsWindow.TermsLine1.Text" xml:space="preserve"><value>Atsumare is a desktop utility that lists app windows currently open on the user's own device and moves them to another monitor.</value></data>
+  <data name="SettingsWindow.TermsLine2.Text" xml:space="preserve"><value>By installing or using the app, you agree to follow applicable law and use it only in environments you own or control.</value></data>
+  <data name="SettingsWindow.TermsLine3.Text" xml:space="preserve"><value>The app is provided as is, and features or compatibility may change over time. See the support page for the full terms.</value></data>
+
+  <data name="SettingsWindow.LicenseWinAppSdkTitle.Text" xml:space="preserve"><value>Microsoft Windows App SDK / WinUI 3</value></data>
+  <data name="SettingsWindow.LicenseWinAppSdkCopyright.Text" xml:space="preserve"><value>Copyright (c) Microsoft Corporation. All rights reserved.</value></data>
+  <data name="SettingsWindow.LicenseWinAppSdkDesc.Text" xml:space="preserve"><value>This app depends on Microsoft Windows App SDK runtime and WinUI components.</value></data>
+  <data name="SettingsWindow.LicenseWinAppSdkTerms.Text" xml:space="preserve"><value>License: Microsoft Software License Terms</value></data>
+  <data name="SettingsWindow.LicenseDotNetTitle.Text" xml:space="preserve"><value>.NET Runtime</value></data>
+  <data name="SettingsWindow.LicenseDotNetCopyright.Text" xml:space="preserve"><value>Copyright (c) .NET Foundation and contributors.</value></data>
+  <data name="SettingsWindow.LicenseDotNetTerms.Text" xml:space="preserve"><value>License: MIT License</value></data>
+  <data name="SettingsWindow.LicenseWebViewTitle.Text" xml:space="preserve"><value>Microsoft Edge WebView2 Runtime</value></data>
+  <data name="SettingsWindow.LicenseWebViewDesc.Text" xml:space="preserve"><value>Bundled components may include Microsoft Edge WebView2 loader or runtime dependencies distributed through Windows App SDK.</value></data>
+  <data name="SettingsWindow.LicenseWebViewTerms.Text" xml:space="preserve"><value>License: Microsoft Software License Terms</value></data>
+
+  <data name="SettingsWindow.AboutAuthorFormat" xml:space="preserve"><value>Author: {0}</value></data>
+  <data name="SettingsWindow.AboutVersionFormat" xml:space="preserve"><value>Build version: {0}</value></data>
+  <data name="SettingsWindow.AboutBuildDateFormat" xml:space="preserve"><value>Build date: {0}</value></data>
+  <data name="SettingsWindow.CaptureWaiting" xml:space="preserve"><value>Waiting for input...</value></data>
+  <data name="SettingsWindow.CaptureButtonDefault" xml:space="preserve"><value>Record shortcut</value></data>
+  <data name="SettingsWindow.HotkeySaved" xml:space="preserve"><value>Shortcut saved.</value></data>
+  <data name="SettingsWindow.HotkeyConflict" xml:space="preserve"><value>This shortcut is already in use by Windows or another app.</value></data>
+  <data name="SettingsWindow.HotkeyRegistrationFailedFormat" xml:space="preserve"><value>Could not register the shortcut. (err={0})</value></data>
+  <data name="SettingsWindow.HotkeyCapturePrompt" xml:space="preserve"><value>Press the shortcut to record. Press Esc to cancel.</value></data>
+  <data name="SettingsWindow.HotkeyCaptureCanceled" xml:space="preserve"><value>Shortcut recording canceled.</value></data>
+  <data name="SettingsWindow.HotkeyCaptureNeedSecondKey" xml:space="preserve"><value>Press a non-modifier key after the modifier keys.</value></data>
+  <data name="SettingsWindow.PageTitleDefault" xml:space="preserve"><value>Settings</value></data>
+  <data name="SettingsWindow.PageSubtitle.General" xml:space="preserve"><value>Configure the basic app behavior.</value></data>
+  <data name="SettingsWindow.PageSubtitle.Move" xml:space="preserve"><value>Configure window moving behavior.</value></data>
+  <data name="SettingsWindow.PageSubtitle.AppList" xml:space="preserve"><value>Adjust which apps appear in the picker.</value></data>
+  <data name="SettingsWindow.PageSubtitle.Log" xml:space="preserve"><value>Configure logging and diagnostics.</value></data>
+  <data name="SettingsWindow.PageSubtitle.Ext" xml:space="preserve"><value>Reserved for future extensions.</value></data>
+  <data name="SettingsWindow.PageSubtitle.About" xml:space="preserve"><value>App information.</value></data>
+  <data name="SettingsWindow.PageSubtitle.Licenses" xml:space="preserve"><value>Third-party components and license information.</value></data>
+  <data name="SettingsWindow.StartupStatus.Enabled" xml:space="preserve"><value>Enabled.</value></data>
+  <data name="SettingsWindow.StartupStatus.Disabled" xml:space="preserve"><value>Disabled.</value></data>
+  <data name="SettingsWindow.StartupStatus.DisabledByUser" xml:space="preserve"><value>Disabled in Windows. Re-enable it from Startup Apps.</value></data>
+  <data name="SettingsWindow.StartupStatus.DisabledByPolicy" xml:space="preserve"><value>Disabled by organization policy.</value></data>
+  <data name="SettingsWindow.StartupStatus.Unsupported" xml:space="preserve"><value>Unavailable for this distribution model, or state could not be determined.</value></data>
+
+  <data name="SettingsWindowLogic.SelectKey" xml:space="preserve"><value>Please select a key.</value></data>
+  <data name="SettingsWindowLogic.ModifierOnly" xml:space="preserve"><value>Ctrl / Alt / Shift alone cannot be used as a hotkey.</value></data>
+  <data name="SettingsWindowLogic.RequireModifier" xml:space="preserve"><value>Include at least one of Ctrl / Alt / Shift.</value></data>
+  <data name="SettingsWindowLogic.WinSpaceReserved" xml:space="preserve"><value>Win + Space is reserved by Windows.</value></data>
+
+  <data name="Tray.Menu.Show" xml:space="preserve"><value>Show</value></data>
+  <data name="Tray.Menu.Settings" xml:space="preserve"><value>Settings...</value></data>
+  <data name="Tray.Menu.Exit" xml:space="preserve"><value>Exit</value></data>
+</root>

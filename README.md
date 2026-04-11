@@ -1,5 +1,16 @@
 # Atsumare
 
+Atsumare is a Windows desktop utility for multi-monitor workflows. It shows the apps you already have open, lets you pick one, and moves that app's windows to another monitor.
+
+## Microsoft Store
+
+- Web: [Atsumare on Microsoft Store](https://apps.microsoft.com/detail/9P26WCCZN3Z1)
+- Store URI: `ms-windows-store://pdp/?productid=9P26WCCZN3Z1`
+
+## Screenshot
+
+![Atsumare screenshot](screenshot/20260411_165126745.png)
+
 ## Build
 
 ```powershell

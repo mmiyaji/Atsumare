@@ -37,7 +37,7 @@ public sealed class SettingsWindowLogicTests
     {
         var ok = SettingsWindowLogic.TryValidateHotkeySelection(0x0002, 0x11, out var message);
         Assert.False(ok);
-        Assert.Contains("単体", message);
+        Assert.Equal("SettingsWindowLogic.ModifierOnly", message);
     }
 
     [Fact]
@@ -45,6 +45,6 @@ public sealed class SettingsWindowLogicTests
     {
         var ok = SettingsWindowLogic.TryValidateHotkeySelection(0, 0x71, out var message);
         Assert.False(ok);
-        Assert.Contains("含めて", message);
+        Assert.Equal("SettingsWindowLogic.RequireModifier", message);
     }
 }

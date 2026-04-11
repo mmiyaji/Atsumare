@@ -14,7 +14,7 @@ public static class SettingsStore
 
     public static event EventHandler? SettingsChanged;
 
-    private static string GetSettingsPath()
+    internal static string GetSettingsPath()
     {
         var overriddenPath = E2ETestMode.GetSettingsPathOverride();
         if (!string.IsNullOrWhiteSpace(overriddenPath))
@@ -29,6 +29,29 @@ public static class SettingsStore
         );
         Directory.CreateDirectory(baseDir);
         return Path.Combine(baseDir, "settings.json");
+    }
+
+    internal static string? TryLoadUiLanguageOverride()
+    {
+        try
+        {
+            var path = GetSettingsPath();
+            if (!File.Exists(path))
+                return null;
+
+            using var stream = File.OpenRead(path);
+            using var doc = JsonDocument.Parse(stream);
+            if (!doc.RootElement.TryGetProperty("UiLanguage", out var property))
+                return null;
+
+            return property.ValueKind == JsonValueKind.String
+                ? property.GetString()
+                : null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public static async Task<AtsumareSettings> LoadAsync()

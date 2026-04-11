@@ -6,6 +6,7 @@ public sealed class AtsumareSettings
     public bool StartMinimizedToTray { get; set; } = true;
     public bool LaunchAtStartup { get; set; } = false;
     public bool CloseButtonMinimizesToTray { get; set; } = true;
+    public string UiLanguage { get; set; } = "";
 
     // Hotkey (Win32 MOD_* / VK_*)
     // MOD_ALT=0x0001, MOD_CONTROL=0x0002, MOD_SHIFT=0x0004, MOD_WIN=0x0008

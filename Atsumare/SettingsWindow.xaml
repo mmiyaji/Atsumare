@@ -5,7 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="設定">
+    Title="Settings">
 
     <Grid>
         <NavigationView
@@ -13,15 +13,24 @@
             AutomationProperties.AutomationId="Nav"
             IsBackButtonVisible="Collapsed"
             IsSettingsVisible="False"
+            IsPaneToggleButtonVisible="False"
             KeyDown="HotkeyCaptureScope_KeyDown"
             PaneDisplayMode="Left"
             SelectionChanged="Nav_SelectionChanged"
-            CompactModeThresholdWidth="760"
-            ExpandedModeThresholdWidth="980"
+            CompactModeThresholdWidth="0"
+            ExpandedModeThresholdWidth="0"
             Opacity="0">
 
         <!-- WinUI 3: Resources はここに置く -->
         <NavigationView.Resources>
+            <Style TargetType="NavigationViewItem">
+                <Setter Property="Margin" Value="0,0,0,4"/>
+            </Style>
+
+            <Style TargetType="NavigationViewItemHeader">
+                <Setter Property="Margin" Value="0,48,0,8"/>
+            </Style>
+
             <Style x:Key="CardBorderStyle" TargetType="Border">
                 <Setter Property="CornerRadius" Value="12"/>
                 <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
@@ -53,43 +62,43 @@
         </NavigationView.Resources>
 
         <NavigationView.MenuItems>
-            <NavigationViewItem Content="全般" Tag="general" AutomationProperties.AutomationId="NavGeneral">
+            <NavigationViewItem x:Name="NavGeneralItem" x:Uid="SettingsWindow.NavGeneral" Content="General" Tag="general" AutomationProperties.AutomationId="NavGeneral" Margin="0,48,0,4">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="Setting"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
-            <NavigationViewItem Content="移動" Tag="move" AutomationProperties.AutomationId="NavMove">
+            <NavigationViewItem x:Name="NavMoveItem" x:Uid="SettingsWindow.NavMove" Content="Move" Tag="move" AutomationProperties.AutomationId="NavMove" Margin="0,0,0,4">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="Forward"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
-            <NavigationViewItem Content="アプリ一覧" Tag="applist" AutomationProperties.AutomationId="NavAppList">
+            <NavigationViewItem x:Name="NavAppListItem" x:Uid="SettingsWindow.NavAppList" Content="App List" Tag="applist" AutomationProperties.AutomationId="NavAppList" Margin="0,0,0,4">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="AllApps"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
-            <NavigationViewItem Content="ログ" Tag="log" AutomationProperties.AutomationId="NavLog">
+            <NavigationViewItem x:Name="NavLogItem" x:Uid="SettingsWindow.NavLog" Content="Log" Tag="log" AutomationProperties.AutomationId="NavLog">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="Library"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
-            <NavigationViewItem Content="拡張機能" Tag="ext" AutomationProperties.AutomationId="NavExt">
+            <NavigationViewItem x:Name="NavExtItem" x:Uid="SettingsWindow.NavExt" Content="Extensions" Tag="ext" AutomationProperties.AutomationId="NavExt">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="Admin"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
-            <NavigationViewItem Content="情報" Tag="about" AutomationProperties.AutomationId="NavAbout">
+            <NavigationViewItem x:Name="NavAboutItem" x:Uid="SettingsWindow.NavAbout" Content="About" Tag="about" AutomationProperties.AutomationId="NavAbout">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="Help"/>
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
 
-            <NavigationViewItem Content="ライセンス" Tag="licenses" AutomationProperties.AutomationId="NavLicenses">
+            <NavigationViewItem x:Name="NavLicensesItem" x:Uid="SettingsWindow.NavLicenses" Content="Licenses" Tag="licenses" AutomationProperties.AutomationId="NavLicenses">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="Document"/>
                 </NavigationViewItem.Icon>
@@ -97,38 +106,59 @@
         </NavigationView.MenuItems>
 
         <NavigationView.Content>
-            <ScrollViewer Padding="20" VerticalScrollBarVisibility="Auto">
+            <ScrollViewer Padding="20,28,20,20" VerticalScrollBarVisibility="Auto">
                 <StackPanel x:Name="RootPanel" Spacing="12">
 
                     <!-- Header -->
                     <Grid Margin="0,0,0,10">
                         <StackPanel Spacing="2">
-                            <TextBlock x:Name="PageTitle" Text="全般" Style="{StaticResource SectionTitleStyle}"/>
-                            <TextBlock x:Name="PageSubtitle" Text="基本動作を設定します" Style="{StaticResource SectionSubTitleStyle}"/>
+                            <TextBlock x:Name="PageTitle" x:Uid="SettingsWindow.PageTitle" Text="General" Style="{StaticResource SectionTitleStyle}"/>
+                            <TextBlock x:Name="PageSubtitle" x:Uid="SettingsWindow.PageSubtitle" Text="Configure the basic app behavior." Style="{StaticResource SectionSubTitleStyle}"/>
                         </StackPanel>
                     </Grid>
 
                     <StackPanel x:Name="PanelGeneral" Spacing="12" Visibility="Visible">
                         <Border Style="{StaticResource CardBorderStyle}" Tag="起動 トレイ 最小化 startup tray minimize">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="起動時にトレイへ最小化" Style="{StaticResource CardTitleStyle}"/>
-                                <TextBlock Text="起動時にメインウィンドウを表示せず、トレイ常駐で開始します。" Style="{StaticResource CardDescStyle}"/>
+                                <TextBlock x:Name="TbLanguageTitle" x:Uid="SettingsWindow.LanguageTitle" Text="Display language" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbLanguageDesc" x:Uid="SettingsWindow.LanguageDesc" Text="Choose the language used by the app. English is used as the fallback language." Style="{StaticResource CardDescStyle}"/>
+                                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                    <TextBlock x:Name="TbLanguageLabel" x:Uid="SettingsWindow.LanguageLabel" Text="Language" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="CbUiLanguage"
+                                              AutomationProperties.AutomationId="CbUiLanguage"
+                                              Width="220"
+                                              SelectionChanged="UiLanguage_Changed">
+                                        <ComboBoxItem x:Name="CbUiLanguageSystem" x:Uid="SettingsWindow.UiLanguage.System" Content="System default" Tag=""/>
+                                        <ComboBoxItem x:Name="CbUiLanguageEnglish" x:Uid="SettingsWindow.UiLanguage.English" Content="English" Tag="en-US"/>
+                                        <ComboBoxItem x:Name="CbUiLanguageJapanese" x:Uid="SettingsWindow.UiLanguage.Japanese" Content="日本語" Tag="ja-JP"/>
+                                    </ComboBox>
+                                </StackPanel>
+                                <TextBlock x:Name="TbLanguageStatus"
+                                           AutomationProperties.AutomationId="TbLanguageStatus"
+                                           Style="{StaticResource CardDescStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="起動 トレイ 最小化 startup tray minimize">
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Name="TbGeneralStartMinTitle" x:Uid="SettingsWindow.GeneralStartMinTitle" Text="Start minimized to tray" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbGeneralStartMinDesc" x:Uid="SettingsWindow.GeneralStartMinDesc" Text="Start in the system tray without showing the main window." Style="{StaticResource CardDescStyle}"/>
                                 <ToggleSwitch x:Name="SwStartMinToTray" AutomationProperties.AutomationId="SwStartMinToTray" Toggled="AnySetting_Toggled"/>
                             </StackPanel>
                         </Border>
 
                         <Border Style="{StaticResource CardBorderStyle}" Tag="閉じる × トレイ 最小化 close tray minimize">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="×ボタンで終了せずトレイへ最小化" Style="{StaticResource CardTitleStyle}"/>
-                                <TextBlock Text="ウィンドウを閉じる操作を、終了ではなくトレイ最小化として扱います。" Style="{StaticResource CardDescStyle}"/>
+                                <TextBlock x:Name="TbGeneralCloseMinTitle" x:Uid="SettingsWindow.GeneralCloseMinTitle" Text="Minimize to tray instead of closing" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbGeneralCloseMinDesc" x:Uid="SettingsWindow.GeneralCloseMinDesc" Text="Treat the close button as minimize-to-tray instead of exit." Style="{StaticResource CardDescStyle}"/>
                                 <ToggleSwitch x:Name="SwCloseMinToTray" AutomationProperties.AutomationId="SwCloseMinToTray" Toggled="AnySetting_Toggled"/>
                             </StackPanel>
                         </Border>
 
                         <Border Style="{StaticResource CardBorderStyle}" Tag="startup launch windows run">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Windows 起動時に自動起動" Style="{StaticResource CardTitleStyle}"/>
-                                <TextBlock Text="ユーザーのサインイン時に Atsumare を自動起動します。" Style="{StaticResource CardDescStyle}"/>
+                                <TextBlock x:Name="TbGeneralLaunchStartupTitle" x:Uid="SettingsWindow.GeneralLaunchStartupTitle" Text="Launch at Windows sign-in" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbGeneralLaunchStartupDesc" x:Uid="SettingsWindow.GeneralLaunchStartupDesc" Text="Automatically start Atsumare when the user signs in." Style="{StaticResource CardDescStyle}"/>
                                 <ToggleSwitch x:Name="SwLaunchAtStartup" AutomationProperties.AutomationId="SwLaunchAtStartup" Toggled="AnySetting_Toggled"/>
                                 <TextBlock x:Name="TbStartupStatus" AutomationProperties.AutomationId="TbStartupStatus" Style="{StaticResource CardDescStyle}"/>
                             </StackPanel>
@@ -136,8 +166,8 @@
 
                         <Border Style="{StaticResource CardBorderStyle}" Tag="ホットキー hotkey shortcut">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="ホットキー" Style="{StaticResource CardTitleStyle}"/>
-                                <TextBlock Text="ピッカー表示/非表示のショートカットを設定します。" Style="{StaticResource CardDescStyle}"/>
+                                <TextBlock x:Name="TbHotkeyTitle" x:Uid="SettingsWindow.HotkeyTitle" Text="Hotkey" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbHotkeyDesc" x:Uid="SettingsWindow.HotkeyDesc" Text="Choose the shortcut that shows or hides the picker." Style="{StaticResource CardDescStyle}"/>
 
                                 <StackPanel Orientation="Horizontal" Spacing="12">
                                     <CheckBox x:Name="CbModCtrl" AutomationProperties.AutomationId="CbModCtrl" Content="Ctrl" Checked="Hotkey_Changed" Unchecked="Hotkey_Changed"/>
@@ -147,15 +177,17 @@
                                 </StackPanel>
 
                                 <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                                    <TextBlock Text="キー" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="TbHotkeyKeyLabel" x:Uid="SettingsWindow.HotkeyKeyLabel" Text="Key" VerticalAlignment="Center"/>
                                     <ComboBox x:Name="CbHotkeyKey" AutomationProperties.AutomationId="CbHotkeyKey" Width="220" SelectionChanged="Hotkey_Changed"/>
                                     <Button x:Name="BtnCaptureHotkey"
                                             AutomationProperties.AutomationId="BtnCaptureHotkey"
-                                            Content="ショートカットを記録"
+                                            x:Uid="SettingsWindow.BtnCaptureHotkey"
+                                            Content="Record shortcut"
                                             Click="BtnCaptureHotkey_Click"/>
                                     <Button x:Name="BtnResetHotkey"
                                             AutomationProperties.AutomationId="BtnResetHotkey"
-                                            Content="既定に戻す"
+                                            x:Uid="SettingsWindow.BtnResetHotkey"
+                                            Content="Reset to default"
                                             Click="BtnResetHotkey_Click"/>
                                     <TextBlock x:Name="TbHotkeyPreview" AutomationProperties.AutomationId="TbHotkeyPreview" VerticalAlignment="Center" Opacity="0.8"/>
                                 </StackPanel>
@@ -169,8 +201,8 @@
                     <StackPanel x:Name="PanelMove" Spacing="12" Visibility="Collapsed">
                         <Border Style="{StaticResource CardBorderStyle}" Tag="移動 オーバーレイ overlay move">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="移動時オーバーレイを表示" Style="{StaticResource CardTitleStyle}"/>
-                                <TextBlock Text="ウィンドウ移動中にオーバーレイを表示します。問題切り分け用にOFF推奨の場合があります。" Style="{StaticResource CardDescStyle}"/>
+                                <TextBlock x:Name="TbMoveOverlayTitle" x:Uid="SettingsWindow.MoveOverlayTitle" Text="Show overlay while moving" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbMoveOverlayDesc" x:Uid="SettingsWindow.MoveOverlayDesc" Text="Show an overlay while windows are being moved. Turning this off can help troubleshooting." Style="{StaticResource CardDescStyle}"/>
                                 <ToggleSwitch x:Name="SwShowOverlay" AutomationProperties.AutomationId="SwShowOverlay" Toggled="AnySetting_Toggled"/>
                             </StackPanel>
                         </Border>
@@ -179,8 +211,8 @@
                     <StackPanel x:Name="PanelAppList" Spacing="12" Visibility="Collapsed">
                         <Border Style="{StaticResource CardBorderStyle}" Tag="除外 プロセス app list filter exclude process">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="除外プロセス名" Style="{StaticResource CardTitleStyle}"/>
-                                <TextBlock Text="一覧に出したくないプロセス名をカンマ区切りで指定します。（例: explorer, obs64）" Style="{StaticResource CardDescStyle}"/>
+                                <TextBlock x:Name="TbExcludeProcessTitle" x:Uid="SettingsWindow.ExcludeProcessTitle" Text="Excluded process names" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbExcludeProcessDesc" x:Uid="SettingsWindow.ExcludeProcessDesc" Text="Enter process names to hide from the list, separated by commas. Example: explorer, obs64" Style="{StaticResource CardDescStyle}"/>
                                 <TextBox x:Name="TbExcludeCsv" AutomationProperties.AutomationId="TbExcludeCsv" TextChanged="AnySetting_TextChanged"/>
                             </StackPanel>
                         </Border>
@@ -189,16 +221,16 @@
                     <StackPanel x:Name="PanelLog" Spacing="12" Visibility="Collapsed">
                         <Border Style="{StaticResource CardBorderStyle}" Tag="ログ debug verbose">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="詳細ログを有効化" Style="{StaticResource CardTitleStyle}"/>
-                                <TextBlock Text="診断用のログ出力を増やします。通常はOFFで問題ありません。" Style="{StaticResource CardDescStyle}"/>
+                                <TextBlock x:Name="TbVerboseLogTitle" x:Uid="SettingsWindow.VerboseLogTitle" Text="Enable verbose logs" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbVerboseLogDesc" x:Uid="SettingsWindow.VerboseLogDesc" Text="Increase diagnostic logging. This is usually not needed in normal use." Style="{StaticResource CardDescStyle}"/>
                                 <ToggleSwitch x:Name="SwVerboseLog" AutomationProperties.AutomationId="SwVerboseLog" Toggled="AnySetting_Toggled"/>
                             </StackPanel>
                         </Border>
                         <Border Style="{StaticResource CardBorderStyle}" Tag="ログ フォルダ log folder">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="ログフォルダを開く" Style="{StaticResource CardTitleStyle}"/>
-                                <TextBlock Text="%LocalAppData%\Atsumare\logs にログファイルが保存されます。" Style="{StaticResource CardDescStyle}"/>
-                                <Button Content="フォルダを開く" AutomationProperties.AutomationId="OpenLogFolderButton" Click="OpenLogFolder_Click"/>
+                                <TextBlock x:Name="TbLogFolderTitle" x:Uid="SettingsWindow.LogFolderTitle" Text="Open log folder" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbLogFolderDesc" x:Uid="SettingsWindow.LogFolderDesc" Text="Log files are stored under %LocalAppData%\\Atsumare\\logs." Style="{StaticResource CardDescStyle}"/>
+                                <Button x:Name="BtnOpenLogFolder" x:Uid="SettingsWindow.OpenLogFolderButton" Content="Open folder" AutomationProperties.AutomationId="OpenLogFolderButton" Click="OpenLogFolder_Click"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -206,8 +238,8 @@
                     <StackPanel x:Name="PanelExt" Spacing="12" Visibility="Collapsed">
                         <Border Style="{StaticResource CardBorderStyle}" Tag="拡張 機能 extension">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="拡張機能" Style="{StaticResource CardTitleStyle}"/>
-                                <TextBlock Text="将来拡張（例：移動ルール、特定アプリ連携など）をここに追加します。" Style="{StaticResource CardDescStyle}"/>
+                                <TextBlock x:Name="TbExtensionsTitle" x:Uid="SettingsWindow.ExtensionsTitle" Text="Extensions" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbExtensionsDesc" x:Uid="SettingsWindow.ExtensionsDesc" Text="Future capabilities such as move rules or app integrations can be added here." Style="{StaticResource CardDescStyle}"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -216,7 +248,7 @@
                         <Border Style="{StaticResource CardBorderStyle}" Tag="情報 about version author support">
                             <StackPanel Spacing="6">
                                 <TextBlock Text="Atsumare" Style="{StaticResource CardTitleStyle}"/>
-                                <TextBlock Text="ウィンドウをディスプレイへまとめて移動するツール" Style="{StaticResource CardDescStyle}"/>
+                                <TextBlock x:Name="TbAboutAppDesc" x:Uid="SettingsWindow.AboutAppDesc" Text="Tool for moving windows between displays." Style="{StaticResource CardDescStyle}"/>
                                 <TextBlock x:Name="TbAboutAuthor" AutomationProperties.AutomationId="TbAboutAuthor"/>
                                 <TextBlock x:Name="TbAboutCopyright" AutomationProperties.AutomationId="TbAboutCopyright"/>
                                 <TextBlock x:Name="TbAboutVersion" AutomationProperties.AutomationId="TbAboutVersion"/>
@@ -226,8 +258,8 @@
 
                         <Border Style="{StaticResource CardBorderStyle}" Tag="support github page privacy terms repository">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="サポート" Style="{StaticResource CardTitleStyle}"/>
-                                <TextBlock Text="サポートページ、利用規約、プライバシーポリシー、リポジトリを開けます。" Style="{StaticResource CardDescStyle}"/>
+                                <TextBlock x:Name="TbSupportTitle" x:Uid="SettingsWindow.SupportTitle" Text="Support" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbSupportDesc" x:Uid="SettingsWindow.SupportDesc" Text="Open the support page, terms of use, privacy policy, and repository." Style="{StaticResource CardDescStyle}"/>
                                 <Button x:Name="BtnSupportUrl" AutomationProperties.AutomationId="BtnSupportUrl" HorizontalAlignment="Left" Click="BtnSupportUrl_Click"/>
                                 <Button x:Name="BtnTermsUrl" AutomationProperties.AutomationId="BtnTermsUrl" HorizontalAlignment="Left" Click="BtnTermsUrl_Click"/>
                                 <Button x:Name="BtnPrivacyUrl" AutomationProperties.AutomationId="BtnPrivacyUrl" HorizontalAlignment="Left" Click="BtnPrivacyUrl_Click"/>
@@ -237,10 +269,10 @@
 
                         <Border Style="{StaticResource CardBorderStyle}" Tag="利用規約 terms legal">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="利用規約" Style="{StaticResource CardTitleStyle}"/>
-                                <TextBlock Text="Atsumare は、ユーザー自身のデバイス上で現在開いているアプリのウィンドウを列挙し、別モニターへ移動するためのデスクトップユーティリティです。" TextWrapping="Wrap"/>
-                                <TextBlock Text="インストールまたは利用により、適用法令を遵守し、自己の管理下にある環境でのみ利用することに同意するものとします。" TextWrapping="Wrap"/>
-                                <TextBlock Text="本アプリは現状有姿で提供され、機能や互換性は更新により変更される場合があります。完全な条文はサポートページ上の利用規約を参照してください。" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TbTermsTitle" x:Uid="SettingsWindow.TermsTitle" Text="Terms summary" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbTermsLine1" x:Uid="SettingsWindow.TermsLine1" Text="Atsumare is a desktop utility that lists app windows currently open on the user's own device and moves them to another monitor." TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TbTermsLine2" x:Uid="SettingsWindow.TermsLine2" Text="By installing or using the app, you agree to follow applicable law and use it only in environments you own or control." TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TbTermsLine3" x:Uid="SettingsWindow.TermsLine3" Text="The app is provided as is, and features or compatibility may change over time. See the support page for the full terms." TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -248,28 +280,28 @@
                     <StackPanel x:Name="PanelLicenses" Spacing="12" Visibility="Collapsed">
                         <Border Style="{StaticResource CardBorderStyle}" Tag="third party license windows app sdk">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Microsoft Windows App SDK / WinUI 3" Style="{StaticResource CardTitleStyle}"/>
-                                <TextBlock Text="Copyright © Microsoft Corporation. All rights reserved." Style="{StaticResource CardDescStyle}"/>
-                                <TextBlock Text="This app depends on Microsoft Windows App SDK runtime and WinUI components." TextWrapping="Wrap"/>
-                                <TextBlock Text="License: Microsoft Software License Terms" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TbLicenseWinAppSdkTitle" x:Uid="SettingsWindow.LicenseWinAppSdkTitle" Text="Microsoft Windows App SDK / WinUI 3" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbLicenseWinAppSdkCopyright" x:Uid="SettingsWindow.LicenseWinAppSdkCopyright" Text="Copyright (c) Microsoft Corporation. All rights reserved." Style="{StaticResource CardDescStyle}"/>
+                                <TextBlock x:Name="TbLicenseWinAppSdkDesc" x:Uid="SettingsWindow.LicenseWinAppSdkDesc" Text="This app depends on Microsoft Windows App SDK runtime and WinUI components." TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TbLicenseWinAppSdkTerms" x:Uid="SettingsWindow.LicenseWinAppSdkTerms" Text="License: Microsoft Software License Terms" TextWrapping="Wrap"/>
                                 <Button x:Name="BtnWindowsAppSdkUrl" AutomationProperties.AutomationId="BtnWindowsAppSdkUrl" HorizontalAlignment="Left" Click="BtnWindowsAppSdkUrl_Click"/>
                             </StackPanel>
                         </Border>
 
                         <Border Style="{StaticResource CardBorderStyle}" Tag="third party license dotnet runtime">
                             <StackPanel Spacing="6">
-                                <TextBlock Text=".NET Runtime" Style="{StaticResource CardTitleStyle}"/>
-                                <TextBlock Text="Copyright © .NET Foundation and contributors." Style="{StaticResource CardDescStyle}"/>
-                                <TextBlock Text="License: MIT License" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TbLicenseDotNetTitle" x:Uid="SettingsWindow.LicenseDotNetTitle" Text=".NET Runtime" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbLicenseDotNetCopyright" x:Uid="SettingsWindow.LicenseDotNetCopyright" Text="Copyright (c) .NET Foundation and contributors." Style="{StaticResource CardDescStyle}"/>
+                                <TextBlock x:Name="TbLicenseDotNetTerms" x:Uid="SettingsWindow.LicenseDotNetTerms" Text="License: MIT License" TextWrapping="Wrap"/>
                                 <Button x:Name="BtnDotNetLicenseUrl" AutomationProperties.AutomationId="BtnDotNetLicenseUrl" HorizontalAlignment="Left" Click="BtnDotNetLicenseUrl_Click"/>
                             </StackPanel>
                         </Border>
 
                         <Border Style="{StaticResource CardBorderStyle}" Tag="third party license webview2 microsoft edge">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Microsoft Edge WebView2 Runtime" Style="{StaticResource CardTitleStyle}"/>
-                                <TextBlock Text="Bundled components may include Microsoft Edge WebView2 loader/runtime dependencies provided through Windows App SDK distribution." TextWrapping="Wrap"/>
-                                <TextBlock Text="License: Microsoft Software License Terms" TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TbLicenseWebViewTitle" x:Uid="SettingsWindow.LicenseWebViewTitle" Text="Microsoft Edge WebView2 Runtime" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbLicenseWebViewDesc" x:Uid="SettingsWindow.LicenseWebViewDesc" Text="Bundled components may include Microsoft Edge WebView2 loader or runtime dependencies distributed through Windows App SDK." TextWrapping="Wrap"/>
+                                <TextBlock x:Name="TbLicenseWebViewTerms" x:Uid="SettingsWindow.LicenseWebViewTerms" Text="License: Microsoft Software License Terms" TextWrapping="Wrap"/>
                                 <Button x:Name="BtnWebView2Url" AutomationProperties.AutomationId="BtnWebView2Url" HorizontalAlignment="Left" Click="BtnWebView2Url_Click"/>
                             </StackPanel>
                         </Border>
@@ -280,6 +312,25 @@
             </ScrollViewer>
         </NavigationView.Content>
         </NavigationView>
+
+        <Button x:Name="BtnTogglePane"
+                AutomationProperties.AutomationId="BtnTogglePane"
+                Width="32"
+                Height="32"
+                Margin="12,12,0,0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Click="BtnTogglePane_Click">
+            <FontIcon x:Name="BtnTogglePaneIcon"
+                      Glyph="&#xE700;"
+                      FontFamily="Segoe MDL2 Assets"
+                      FontSize="14"
+                      Opacity="0.85"/>
+        </Button>
 
         <Border x:Name="PaneResizeHandle"
                 AutomationProperties.AutomationId="PaneResizeHandle"
@@ -293,6 +344,7 @@
                 PointerMoved="PaneResizeHandle_PointerMoved"
                 PointerReleased="PaneResizeHandle_PointerReleased"
                 PointerCanceled="PaneResizeHandle_PointerReleased"
+                PointerCaptureLost="PaneResizeHandle_PointerCaptureLost"
                 Visibility="Collapsed">
             <Grid>
                 <Border x:Name="PaneResizeHover"
@@ -312,4 +364,3 @@
         </Border>
     </Grid>
 </Window>
-

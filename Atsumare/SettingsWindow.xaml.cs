@@ -25,6 +25,7 @@ public sealed partial class SettingsWindow : Window
     private bool _isCapturingHotkey;
     private bool _isResizingPane;
     private bool _isPaneResizeHovering;
+    private bool _isPaneCollapsed;
     private double _paneWidth = 280;
     private double _paneResizeStartX;
     private double _paneResizeStartWidth;
@@ -42,7 +43,10 @@ public sealed partial class SettingsWindow : Window
     public SettingsWindow()
     {
         InitializeComponent();
-        Title = "設定";
+        if (this.Content is FrameworkElement root)
+            root.Language = AppLanguage.GetEffectiveLanguage(SettingsStore.Current);
+        Title = $"Atsumare - {AppStrings.Get("SettingsWindow.Title")}";
+        ApplyLocalizedUi();
 
         try { SystemBackdrop = new MicaBackdrop(); }
         catch { SystemBackdrop = null; }
@@ -60,18 +64,87 @@ public sealed partial class SettingsWindow : Window
         WindowIconHelper.Apply(this);
 
         SetWindowSizeSafe(980, 640);
+        CenterWindowSafe();
         ApplyResponsiveLayout(this.Bounds.Width);
         PopulateAboutInfo();
         ConfigureTitleBarColorsSafe();
         _ = LoadAsync();
     }
 
+    private void ApplyLocalizedUi()
+    {
+        var language = AppLanguage.GetEffectiveLanguage(SettingsStore.Current);
+        var fontFamily = language == AppLanguage.Japanese
+            ? new FontFamily("Yu Gothic UI")
+            : new FontFamily("Segoe UI");
+
+        CbUiLanguage.FontFamily = fontFamily;
+        CbUiLanguageSystem.FontFamily = fontFamily;
+        CbUiLanguageEnglish.FontFamily = fontFamily;
+        CbUiLanguageJapanese.FontFamily = fontFamily;
+
+        NavGeneralItem.Content = AppStrings.Get("SettingsWindow.NavGeneral.Content");
+        NavMoveItem.Content = AppStrings.Get("SettingsWindow.NavMove.Content");
+        NavAppListItem.Content = AppStrings.Get("SettingsWindow.NavAppList.Content");
+        NavLogItem.Content = AppStrings.Get("SettingsWindow.NavLog.Content");
+        NavExtItem.Content = AppStrings.Get("SettingsWindow.NavExt.Content");
+        NavAboutItem.Content = AppStrings.Get("SettingsWindow.NavAbout.Content");
+        NavLicensesItem.Content = AppStrings.Get("SettingsWindow.NavLicenses.Content");
+
+        TbLanguageTitle.Text = AppStrings.Get("SettingsWindow.LanguageTitle.Text");
+        TbLanguageDesc.Text = AppStrings.Get("SettingsWindow.LanguageDesc.Text");
+        TbLanguageLabel.Text = AppStrings.Get("SettingsWindow.LanguageLabel.Text");
+        CbUiLanguageSystem.Content = AppStrings.Get("SettingsWindow.UiLanguage.System.Content");
+        CbUiLanguageEnglish.Content = AppStrings.Get("SettingsWindow.UiLanguage.English.Content");
+        CbUiLanguageJapanese.Content = AppStrings.Get("SettingsWindow.UiLanguage.Japanese.Content");
+
+        TbGeneralStartMinTitle.Text = AppStrings.Get("SettingsWindow.GeneralStartMinTitle.Text");
+        TbGeneralStartMinDesc.Text = AppStrings.Get("SettingsWindow.GeneralStartMinDesc.Text");
+        TbGeneralCloseMinTitle.Text = AppStrings.Get("SettingsWindow.GeneralCloseMinTitle.Text");
+        TbGeneralCloseMinDesc.Text = AppStrings.Get("SettingsWindow.GeneralCloseMinDesc.Text");
+        TbGeneralLaunchStartupTitle.Text = AppStrings.Get("SettingsWindow.GeneralLaunchStartupTitle.Text");
+        TbGeneralLaunchStartupDesc.Text = AppStrings.Get("SettingsWindow.GeneralLaunchStartupDesc.Text");
+        TbHotkeyTitle.Text = AppStrings.Get("SettingsWindow.HotkeyTitle.Text");
+        TbHotkeyDesc.Text = AppStrings.Get("SettingsWindow.HotkeyDesc.Text");
+        TbHotkeyKeyLabel.Text = AppStrings.Get("SettingsWindow.HotkeyKeyLabel.Text");
+        BtnCaptureHotkey.Content = AppStrings.Get("SettingsWindow.BtnCaptureHotkey.Content");
+        BtnResetHotkey.Content = AppStrings.Get("SettingsWindow.BtnResetHotkey.Content");
+        TbMoveOverlayTitle.Text = AppStrings.Get("SettingsWindow.MoveOverlayTitle.Text");
+        TbMoveOverlayDesc.Text = AppStrings.Get("SettingsWindow.MoveOverlayDesc.Text");
+        TbExcludeProcessTitle.Text = AppStrings.Get("SettingsWindow.ExcludeProcessTitle.Text");
+        TbExcludeProcessDesc.Text = AppStrings.Get("SettingsWindow.ExcludeProcessDesc.Text");
+        TbVerboseLogTitle.Text = AppStrings.Get("SettingsWindow.VerboseLogTitle.Text");
+        TbVerboseLogDesc.Text = AppStrings.Get("SettingsWindow.VerboseLogDesc.Text");
+        TbLogFolderTitle.Text = AppStrings.Get("SettingsWindow.LogFolderTitle.Text");
+        TbLogFolderDesc.Text = AppStrings.Get("SettingsWindow.LogFolderDesc.Text");
+        BtnOpenLogFolder.Content = AppStrings.Get("SettingsWindow.OpenLogFolderButton.Content");
+        TbExtensionsTitle.Text = AppStrings.Get("SettingsWindow.ExtensionsTitle.Text");
+        TbExtensionsDesc.Text = AppStrings.Get("SettingsWindow.ExtensionsDesc.Text");
+        TbAboutAppDesc.Text = AppStrings.Get("SettingsWindow.AboutAppDesc.Text");
+        TbSupportTitle.Text = AppStrings.Get("SettingsWindow.SupportTitle.Text");
+        TbSupportDesc.Text = AppStrings.Get("SettingsWindow.SupportDesc.Text");
+        TbTermsTitle.Text = AppStrings.Get("SettingsWindow.TermsTitle.Text");
+        TbTermsLine1.Text = AppStrings.Get("SettingsWindow.TermsLine1.Text");
+        TbTermsLine2.Text = AppStrings.Get("SettingsWindow.TermsLine2.Text");
+        TbTermsLine3.Text = AppStrings.Get("SettingsWindow.TermsLine3.Text");
+        TbLicenseWinAppSdkTitle.Text = AppStrings.Get("SettingsWindow.LicenseWinAppSdkTitle.Text");
+        TbLicenseWinAppSdkCopyright.Text = AppStrings.Get("SettingsWindow.LicenseWinAppSdkCopyright.Text");
+        TbLicenseWinAppSdkDesc.Text = AppStrings.Get("SettingsWindow.LicenseWinAppSdkDesc.Text");
+        TbLicenseWinAppSdkTerms.Text = AppStrings.Get("SettingsWindow.LicenseWinAppSdkTerms.Text");
+        TbLicenseDotNetTitle.Text = AppStrings.Get("SettingsWindow.LicenseDotNetTitle.Text");
+        TbLicenseDotNetCopyright.Text = AppStrings.Get("SettingsWindow.LicenseDotNetCopyright.Text");
+        TbLicenseDotNetTerms.Text = AppStrings.Get("SettingsWindow.LicenseDotNetTerms.Text");
+        TbLicenseWebViewTitle.Text = AppStrings.Get("SettingsWindow.LicenseWebViewTitle.Text");
+        TbLicenseWebViewDesc.Text = AppStrings.Get("SettingsWindow.LicenseWebViewDesc.Text");
+        TbLicenseWebViewTerms.Text = AppStrings.Get("SettingsWindow.LicenseWebViewTerms.Text");
+    }
+
     private void PopulateAboutInfo()
     {
-        TbAboutAuthor.Text = $"制作者: {AppMetadata.AuthorName}";
+        TbAboutAuthor.Text = AppStrings.Format("SettingsWindow.AboutAuthorFormat", AppMetadata.AuthorName);
         TbAboutCopyright.Text = AppMetadata.CopyrightText;
-        TbAboutVersion.Text = $"ビルドバージョン: {AppMetadata.VersionText}";
-        TbAboutBuildDate.Text = $"ビルド日時: {AppMetadata.BuildDateText}";
+        TbAboutVersion.Text = AppStrings.Format("SettingsWindow.AboutVersionFormat", AppMetadata.VersionText);
+        TbAboutBuildDate.Text = AppStrings.Format("SettingsWindow.AboutBuildDateFormat", AppMetadata.BuildDateText);
 
         BtnSupportUrl.Content = AppMetadata.SupportUrl;
         BtnTermsUrl.Content = AppMetadata.TermsOfUseUrl;
@@ -103,21 +176,42 @@ public sealed partial class SettingsWindow : Window
 
     private void ApplyResponsiveLayout(double width)
     {
-        var isNarrow = width < 720;
-
-        if (isNarrow)
-            Nav.IsPaneOpen = false;
-        else
+        Nav.IsPaneOpen = !_isPaneCollapsed;
+        if (Nav.IsPaneOpen)
             Nav.OpenPaneLength = _paneWidth;
 
-        UpdatePaneResizeHandle(isNarrow);
+        UpdatePaneToggleVisual();
+        UpdatePaneResizeHandle(false);
+    }
+
+    private void UpdatePaneToggleVisual()
+    {
+        BtnTogglePaneIcon.Glyph = _isPaneCollapsed ? "\uE700" : "\uE76B";
     }
 
     private void UpdatePaneResizeHandle(bool isNarrow)
     {
-        PaneResizeHandle.Visibility = !isNarrow && Nav.IsPaneOpen ? Visibility.Visible : Visibility.Collapsed;
+        var isVisible = !isNarrow && Nav.IsPaneOpen;
+        PaneResizeHandle.Visibility = isVisible ? Visibility.Visible : Visibility.Collapsed;
         PaneResizeHandle.Margin = new Thickness(Math.Max(0, Nav.OpenPaneLength - (PaneResizeHandle.Width / 2)), 0, 0, 0);
+        if (!isVisible)
+            ResetPaneResizeVisualState();
         UpdatePaneResizeVisual();
+    }
+
+    private void ResetPaneResizeVisualState()
+    {
+        _isResizingPane = false;
+        _isPaneResizeHovering = false;
+    }
+
+    private void BtnTogglePane_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isClosing)
+            return;
+
+        _isPaneCollapsed = !_isPaneCollapsed;
+        ApplyResponsiveLayout(this.Bounds.Width);
     }
 
     private void SettingsWindow_Closed(object sender, WindowEventArgs args)
@@ -180,9 +274,16 @@ public sealed partial class SettingsWindow : Window
             return;
 
         _isResizingPane = false;
+        _isPaneResizeHovering = false;
         PaneResizeHandle.ReleasePointerCapture(e.Pointer);
         UpdatePaneResizeHandle(this.Bounds.Width < 720);
         e.Handled = true;
+    }
+
+    private void PaneResizeHandle_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
+    {
+        ResetPaneResizeVisualState();
+        UpdatePaneResizeVisual();
     }
 
     private void UpdatePaneResizeVisual()
@@ -190,7 +291,7 @@ public sealed partial class SettingsWindow : Window
         if (PaneResizeHandle.Visibility != Visibility.Visible)
         {
             PaneResizeHover.Opacity = 0;
-            PaneResizeGrip.Opacity = 0.35;
+            PaneResizeGrip.Opacity = 0;
             return;
         }
 
@@ -203,7 +304,7 @@ public sealed partial class SettingsWindow : Window
         }
 
         PaneResizeHover.Opacity = _isPaneResizeHovering ? 0.85 : 0;
-        PaneResizeGrip.Opacity = _isPaneResizeHovering ? 0.9 : 0.45;
+        PaneResizeGrip.Opacity = _isPaneResizeHovering ? 0.9 : 0;
         PaneResizeGrip.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 168, 179, 196));
     }
 
@@ -213,6 +314,33 @@ public sealed partial class SettingsWindow : Window
         {
             var appWindow = TryGetAppWindow();
             appWindow?.Resize(new Windows.Graphics.SizeInt32(width, height));
+        }
+        catch
+        {
+        }
+    }
+
+    private void CenterWindowSafe()
+    {
+        try
+        {
+            var hwnd = WindowNative.GetWindowHandle(this);
+            if (hwnd == IntPtr.Zero)
+                return;
+
+            var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
+            var appWindow = TryGetAppWindow();
+            if (appWindow == null)
+                return;
+
+            var displayArea = DisplayArea.GetFromWindowId(windowId, DisplayAreaFallback.Primary);
+            var workArea = displayArea.WorkArea;
+            var size = appWindow.Size;
+
+            var x = workArea.X + Math.Max(0, (workArea.Width - size.Width) / 2);
+            var y = workArea.Y + Math.Max(0, (workArea.Height - size.Height) / 2);
+
+            appWindow.Move(new Windows.Graphics.PointInt32(x, y));
         }
         catch
         {
@@ -238,6 +366,7 @@ public sealed partial class SettingsWindow : Window
             var startupStatus = await StartupRegistration.GetStatusAsync();
 
             SwStartMinToTray.IsOn = s.StartMinimizedToTray;
+            SelectUiLanguage(s.UiLanguage);
             UpdateStartupToggle(startupStatus);
             SwCloseMinToTray.IsOn = s.CloseButtonMinimizesToTray;
             SwShowOverlay.IsOn = s.ShowMoveOverlay;
@@ -311,6 +440,28 @@ public sealed partial class SettingsWindow : Window
             : null;
     }
 
+    private void SetLanguageStatus(string text)
+    {
+        TbLanguageStatus.Text = text;
+        TbLanguageStatus.Foreground = null;
+    }
+
+    private void SelectUiLanguage(string? languageTag)
+    {
+        var normalized = AppLanguage.Normalize(languageTag);
+        foreach (var item in CbUiLanguage.Items.OfType<ComboBoxItem>())
+        {
+            var tag = item.Tag as string ?? "";
+            if (string.Equals(tag, normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                CbUiLanguage.SelectedItem = item;
+                return;
+            }
+        }
+
+        CbUiLanguage.SelectedIndex = 0;
+    }
+
     private HotkeyKeyItem EnsureHotkeyKeyCandidate(int vk)
     {
         var existing = _hotkeyKeys.FirstOrDefault(x => x.Vk == vk);
@@ -328,7 +479,9 @@ public sealed partial class SettingsWindow : Window
 
     private void UpdateCaptureButtonState()
     {
-        BtnCaptureHotkey.Content = _isCapturingHotkey ? "入力待ち..." : "ショートカットを記録";
+        BtnCaptureHotkey.Content = _isCapturingHotkey
+            ? AppStrings.Get("SettingsWindow.CaptureWaiting")
+            : AppStrings.Get("SettingsWindow.CaptureButtonDefault");
     }
 
     private async Task ResetHotkeyToDefaultAsync()
@@ -356,9 +509,9 @@ public sealed partial class SettingsWindow : Window
             ? SettingsWindowLogic.NormalizeHotkeyModifiers(modifiers)
             : modifiers;
 
-        if (!SettingsWindowLogic.TryValidateHotkeySelection(effectiveModifiers, vk, out var validationMessage))
+        if (!SettingsWindowLogic.TryValidateHotkeySelection(effectiveModifiers, vk, out var validationMessageKey))
         {
-            SetHotkeyStatus(validationMessage, isError: true);
+            SetHotkeyStatus(AppStrings.Get(validationMessageKey), isError: true);
             return;
         }
 
@@ -383,13 +536,13 @@ public sealed partial class SettingsWindow : Window
         current.HotkeyVirtualKey = vk;
         UpdateHotkeyPreview();
         await SettingsStore.SaveAsync();
-        SetHotkeyStatus("ショートカットを保存しました。");
+        SetHotkeyStatus(AppStrings.Get("SettingsWindow.HotkeySaved"));
     }
 
     private static string BuildHotkeyRegistrationErrorMessage(int errorCode) => errorCode switch
     {
-        1409 => "このショートカットは他のアプリまたは Windows が使用中です。",
-        _ => $"ショートカットを登録できませんでした。(err={errorCode})"
+        1409 => AppStrings.Get("SettingsWindow.HotkeyConflict"),
+        _ => AppStrings.Format("SettingsWindow.HotkeyRegistrationFailedFormat", errorCode)
     };
 
     private async void Hotkey_Changed(object sender, object e)
@@ -449,6 +602,31 @@ public sealed partial class SettingsWindow : Window
         }
     }
 
+    private async void UiLanguage_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isLoading || _isClosing)
+            return;
+
+        try
+        {
+            var selected = (CbUiLanguage.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
+            var normalized = AppLanguage.Normalize(selected);
+            if (string.Equals(SettingsStore.Current.UiLanguage ?? "", normalized, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            SettingsStore.Current.UiLanguage = normalized;
+            await SettingsStore.SaveAsync();
+            AppLanguage.Apply(SettingsStore.Current);
+            SetLanguageStatus(AppStrings.Get("SettingsWindow.LanguageSaved"));
+            await Task.Delay(150);
+            App.RestartApplication(GetSelectedSectionTag());
+        }
+        catch (Exception ex)
+        {
+            LogHandledException("UiLanguage_Changed", ex);
+        }
+    }
+
     private async void AnySetting_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (_isLoading || _isClosing) return;
@@ -489,7 +667,7 @@ public sealed partial class SettingsWindow : Window
 
         _isCapturingHotkey = true;
         UpdateCaptureButtonState();
-        SetHotkeyStatus("押したショートカットを記録します。Esc でキャンセルできます。");
+        SetHotkeyStatus(AppStrings.Get("SettingsWindow.HotkeyCapturePrompt"));
         BtnCaptureHotkey.Focus(FocusState.Programmatic);
     }
 
@@ -520,14 +698,14 @@ public sealed partial class SettingsWindow : Window
         {
             _isCapturingHotkey = false;
             UpdateCaptureButtonState();
-            SetHotkeyStatus("ショートカット記録をキャンセルしました。");
+            SetHotkeyStatus(AppStrings.Get("SettingsWindow.HotkeyCaptureCanceled"));
             e.Handled = true;
             return;
         }
 
         if (SettingsWindowLogic.IsModifierKey(vk))
         {
-            SetHotkeyStatus("修飾キーに続けて、もう 1 つキーを押してください。", isError: true);
+            SetHotkeyStatus(AppStrings.Get("SettingsWindow.HotkeyCaptureNeedSecondKey"), isError: true);
             e.Handled = true;
             return;
         }
@@ -552,6 +730,11 @@ public sealed partial class SettingsWindow : Window
         if (_isClosing) return;
         if (args.SelectedItem is not NavigationViewItem item) return;
 
+        ApplySection(item);
+    }
+
+    private void ApplySection(NavigationViewItem item)
+    {
         var tag = (item.Tag as string) ?? "";
 
         PanelGeneral.Visibility = tag == "general" ? Visibility.Visible : Visibility.Collapsed;
@@ -562,18 +745,35 @@ public sealed partial class SettingsWindow : Window
         PanelAbout.Visibility = tag == "about" ? Visibility.Visible : Visibility.Collapsed;
         PanelLicenses.Visibility = tag == "licenses" ? Visibility.Visible : Visibility.Collapsed;
 
-        PageTitle.Text = item.Content?.ToString() ?? "設定";
+        PageTitle.Text = item.Content?.ToString() ?? AppStrings.Get("SettingsWindow.PageTitleDefault");
         PageSubtitle.Text = tag switch
         {
-            "general" => "基本設定を変更します",
-            "move" => "移動関連の動作を設定します",
-            "applist" => "一覧表示するアプリを調整します",
-            "log" => "ログと診断の設定です",
-            "ext" => "今後の拡張向け設定です",
-            "about" => "アプリ情報",
-            "licenses" => "第三者コンポーネントとライセンス情報",
+            "general" => AppStrings.Get("SettingsWindow.PageSubtitle.General"),
+            "move" => AppStrings.Get("SettingsWindow.PageSubtitle.Move"),
+            "applist" => AppStrings.Get("SettingsWindow.PageSubtitle.AppList"),
+            "log" => AppStrings.Get("SettingsWindow.PageSubtitle.Log"),
+            "ext" => AppStrings.Get("SettingsWindow.PageSubtitle.Ext"),
+            "about" => AppStrings.Get("SettingsWindow.PageSubtitle.About"),
+            "licenses" => AppStrings.Get("SettingsWindow.PageSubtitle.Licenses"),
             _ => ""
         };
+    }
+
+    public void SelectSectionByTag(string sectionTag)
+    {
+        var item = Nav.MenuItems
+            .OfType<NavigationViewItem>()
+            .FirstOrDefault(x => string.Equals(x.Tag as string, sectionTag, StringComparison.OrdinalIgnoreCase));
+        if (item == null)
+            return;
+
+        Nav.SelectedItem = item;
+        ApplySection(item);
+    }
+
+    public string? GetSelectedSectionTag()
+    {
+        return (Nav.SelectedItem as NavigationViewItem)?.Tag as string;
     }
 
     private AppWindow? TryGetAppWindow()
@@ -644,11 +844,11 @@ public sealed partial class SettingsWindow : Window
         SwLaunchAtStartup.IsEnabled = status != StartupRegistrationStatus.Unsupported;
         TbStartupStatus.Text = status switch
         {
-            StartupRegistrationStatus.Enabled => "有効です。",
-            StartupRegistrationStatus.Disabled => "無効です。",
-            StartupRegistrationStatus.DisabledByUser => "Windows 側で無効化されています。スタートアップ アプリから再度有効化してください。",
-            StartupRegistrationStatus.DisabledByPolicy => "組織のポリシーで無効化されています。",
-            _ => "この配布形態では利用できないか、状態を取得できませんでした。"
+            StartupRegistrationStatus.Enabled => AppStrings.Get("SettingsWindow.StartupStatus.Enabled"),
+            StartupRegistrationStatus.Disabled => AppStrings.Get("SettingsWindow.StartupStatus.Disabled"),
+            StartupRegistrationStatus.DisabledByUser => AppStrings.Get("SettingsWindow.StartupStatus.DisabledByUser"),
+            StartupRegistrationStatus.DisabledByPolicy => AppStrings.Get("SettingsWindow.StartupStatus.DisabledByPolicy"),
+            _ => AppStrings.Get("SettingsWindow.StartupStatus.Unsupported")
         };
         _isLoading = false;
     }

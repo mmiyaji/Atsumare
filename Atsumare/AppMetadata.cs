@@ -18,7 +18,7 @@ internal static class AppMetadata
     internal const string WebView2LicenseUrl = "https://learn.microsoft.com/microsoft-edge/webview2/";
 
     internal static string CopyrightText =>
-        $"Copyright © {DateTime.Now.Year} {AuthorName}. All rights reserved.";
+        $"Copyright (c) {DateTime.Now.Year} {AuthorName}. All rights reserved.";
 
     internal static string VersionText
     {

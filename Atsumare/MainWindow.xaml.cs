@@ -96,7 +96,13 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        AppVersionBadge.Text = $"Atsumare v{AppMetadata.VersionText}";
+        if (this.Content is FrameworkElement root)
+            root.Language = AppLanguage.GetEffectiveLanguage(SettingsStore.Current);
+        Title = AppStrings.Get("MainWindow.Title");
+        AppVersionBadge.Text = AppStrings.Format("MainWindow.AppVersionFormat", AppMetadata.VersionText);
+        FilterBox.PlaceholderText = AppStrings.Get("MainWindow.SearchBox.PlaceholderText");
+        SettingsButtonText.Text = AppStrings.Get("MainWindow.SettingsText.Text");
+        MoveOverlayText.Text = AppStrings.Get("MainWindow.MoveOverlayText.Text");
         DebugBanner.Visibility = ShowDeveloperDiagnostics ? Visibility.Visible : Visibility.Collapsed;
         DebugRibbon.Visibility = ShowDeveloperDiagnostics ? Visibility.Visible : Visibility.Collapsed;
         DebugRibbonTextBlock.Text = BuildDebugRibbonText();
@@ -1799,4 +1805,3 @@ public sealed class AppGroupItem
 }
 
 internal sealed record IconLoadResult(ImageSource? Image, string Source, string? ExePath);
-

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, ...</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, ...</value></resheader>
+  <data name="MainWindow.Title" xml:space="preserve"><value>Atsumare</value></data>
+  <data name="MainWindow.SearchBox.PlaceholderText" xml:space="preserve"><value>アプリを検索...</value></data>
+  <data name="MainWindow.SettingsText.Text" xml:space="preserve"><value>設定</value></data>
+  <data name="MainWindow.MoveOverlayText.Text" xml:space="preserve"><value>移動中...</value></data>
+  <data name="MainWindow.AppVersionFormat" xml:space="preserve"><value>Atsumare v{0}</value></data>
+
+  <data name="SettingsWindow.Title" xml:space="preserve"><value>設定</value></data>
+  <data name="SettingsWindow.NavGeneral.Content" xml:space="preserve"><value>全般</value></data>
+  <data name="SettingsWindow.NavMove.Content" xml:space="preserve"><value>移動</value></data>
+  <data name="SettingsWindow.NavAppList.Content" xml:space="preserve"><value>アプリ一覧</value></data>
+  <data name="SettingsWindow.NavLog.Content" xml:space="preserve"><value>ログ</value></data>
+  <data name="SettingsWindow.NavExt.Content" xml:space="preserve"><value>拡張機能</value></data>
+  <data name="SettingsWindow.NavAbout.Content" xml:space="preserve"><value>情報</value></data>
+  <data name="SettingsWindow.NavLicenses.Content" xml:space="preserve"><value>ライセンス</value></data>
+  <data name="SettingsWindow.PageTitle.Text" xml:space="preserve"><value>全般</value></data>
+  <data name="SettingsWindow.PageSubtitle.Text" xml:space="preserve"><value>基本設定を変更します。</value></data>
+
+  <data name="SettingsWindow.LanguageTitle.Text" xml:space="preserve"><value>表示言語</value></data>
+  <data name="SettingsWindow.LanguageDesc.Text" xml:space="preserve"><value>アプリで使用する言語を選択します。未対応の文言は英語で表示されます。</value></data>
+  <data name="SettingsWindow.LanguageLabel.Text" xml:space="preserve"><value>言語</value></data>
+  <data name="SettingsWindow.UiLanguage.System.Content" xml:space="preserve"><value>システム既定</value></data>
+  <data name="SettingsWindow.UiLanguage.English.Content" xml:space="preserve"><value>English</value></data>
+  <data name="SettingsWindow.UiLanguage.Japanese.Content" xml:space="preserve"><value>日本語</value></data>
+  <data name="SettingsWindow.LanguageSaved" xml:space="preserve"><value>言語設定を保存しました。反映のためアプリを再起動します。</value></data>
+
+  <data name="SettingsWindow.GeneralStartMinTitle.Text" xml:space="preserve"><value>起動時にトレイへ最小化</value></data>
+  <data name="SettingsWindow.GeneralStartMinDesc.Text" xml:space="preserve"><value>メインウィンドウを表示せず、システムトレイに常駐した状態で開始します。</value></data>
+  <data name="SettingsWindow.GeneralCloseMinTitle.Text" xml:space="preserve"><value>閉じるの代わりにトレイへ最小化</value></data>
+  <data name="SettingsWindow.GeneralCloseMinDesc.Text" xml:space="preserve"><value>閉じるボタンを終了ではなくトレイ最小化として扱います。</value></data>
+  <data name="SettingsWindow.GeneralLaunchStartupTitle.Text" xml:space="preserve"><value>Windows サインイン時に起動</value></data>
+  <data name="SettingsWindow.GeneralLaunchStartupDesc.Text" xml:space="preserve"><value>ユーザーのサインイン時に Atsumare を自動起動します。</value></data>
+  <data name="SettingsWindow.HotkeyTitle.Text" xml:space="preserve"><value>ホットキー</value></data>
+  <data name="SettingsWindow.HotkeyDesc.Text" xml:space="preserve"><value>ピッカーを表示または非表示にするショートカットを設定します。</value></data>
+  <data name="SettingsWindow.HotkeyKeyLabel.Text" xml:space="preserve"><value>キー</value></data>
+  <data name="SettingsWindow.BtnCaptureHotkey.Content" xml:space="preserve"><value>ショートカットを記録</value></data>
+  <data name="SettingsWindow.BtnResetHotkey.Content" xml:space="preserve"><value>既定に戻す</value></data>
+
+  <data name="SettingsWindow.MoveOverlayTitle.Text" xml:space="preserve"><value>移動中にオーバーレイを表示</value></data>
+  <data name="SettingsWindow.MoveOverlayDesc.Text" xml:space="preserve"><value>ウィンドウ移動中にオーバーレイを表示します。問題調査時はオフにすると切り分けしやすくなります。</value></data>
+
+  <data name="SettingsWindow.ExcludeProcessTitle.Text" xml:space="preserve"><value>除外するプロセス名</value></data>
+  <data name="SettingsWindow.ExcludeProcessDesc.Text" xml:space="preserve"><value>一覧に表示したくないプロセス名をカンマ区切りで入力します。例: explorer, obs64</value></data>
+
+  <data name="SettingsWindow.VerboseLogTitle.Text" xml:space="preserve"><value>詳細ログを有効化</value></data>
+  <data name="SettingsWindow.VerboseLogDesc.Text" xml:space="preserve"><value>診断用の詳細ログを増やします。通常利用ではオフで問題ありません。</value></data>
+  <data name="SettingsWindow.LogFolderTitle.Text" xml:space="preserve"><value>ログフォルダを開く</value></data>
+  <data name="SettingsWindow.LogFolderDesc.Text" xml:space="preserve"><value>ログファイルは %LocalAppData%\Atsumare\logs に保存されます。</value></data>
+  <data name="SettingsWindow.OpenLogFolderButton.Content" xml:space="preserve"><value>フォルダを開く</value></data>
+
+  <data name="SettingsWindow.ExtensionsTitle.Text" xml:space="preserve"><value>拡張機能</value></data>
+  <data name="SettingsWindow.ExtensionsDesc.Text" xml:space="preserve"><value>将来の移動ルールやアプリ連携などの機能をここに追加できます。</value></data>
+
+  <data name="SettingsWindow.AboutAppDesc.Text" xml:space="preserve"><value>ウィンドウをディスプレイ間で移動するためのツールです。</value></data>
+  <data name="SettingsWindow.SupportTitle.Text" xml:space="preserve"><value>サポート</value></data>
+  <data name="SettingsWindow.SupportDesc.Text" xml:space="preserve"><value>サポートページ、利用規約、プライバシーポリシー、リポジトリを開きます。</value></data>
+  <data name="SettingsWindow.TermsTitle.Text" xml:space="preserve"><value>利用規約の要約</value></data>
+  <data name="SettingsWindow.TermsLine1.Text" xml:space="preserve"><value>Atsumare は、ユーザー自身のデバイス上で現在開いているアプリのウィンドウを一覧し、別のモニターへ移動するためのデスクトップユーティリティです。</value></data>
+  <data name="SettingsWindow.TermsLine2.Text" xml:space="preserve"><value>インストールまたは利用により、適用される法令を遵守し、自身が所有または管理する環境でのみ利用することに同意したものとみなします。</value></data>
+  <data name="SettingsWindow.TermsLine3.Text" xml:space="preserve"><value>本アプリは現状有姿で提供され、機能や互換性は変更される場合があります。詳細はサポートページ上の利用規約を確認してください。</value></data>
+
+  <data name="SettingsWindow.LicenseWinAppSdkTitle.Text" xml:space="preserve"><value>Microsoft Windows App SDK / WinUI 3</value></data>
+  <data name="SettingsWindow.LicenseWinAppSdkCopyright.Text" xml:space="preserve"><value>Copyright (c) Microsoft Corporation. All rights reserved.</value></data>
+  <data name="SettingsWindow.LicenseWinAppSdkDesc.Text" xml:space="preserve"><value>このアプリは Microsoft Windows App SDK ランタイムと WinUI コンポーネントに依存しています。</value></data>
+  <data name="SettingsWindow.LicenseWinAppSdkTerms.Text" xml:space="preserve"><value>License: Microsoft Software License Terms</value></data>
+  <data name="SettingsWindow.LicenseDotNetTitle.Text" xml:space="preserve"><value>.NET Runtime</value></data>
+  <data name="SettingsWindow.LicenseDotNetCopyright.Text" xml:space="preserve"><value>Copyright (c) .NET Foundation and contributors.</value></data>
+  <data name="SettingsWindow.LicenseDotNetTerms.Text" xml:space="preserve"><value>License: MIT License</value></data>
+  <data name="SettingsWindow.LicenseWebViewTitle.Text" xml:space="preserve"><value>Microsoft Edge WebView2 Runtime</value></data>
+  <data name="SettingsWindow.LicenseWebViewDesc.Text" xml:space="preserve"><value>同梱コンポーネントには、Windows App SDK 経由で配布される Microsoft Edge WebView2 のローダーまたはランタイム依存関係が含まれる場合があります。</value></data>
+  <data name="SettingsWindow.LicenseWebViewTerms.Text" xml:space="preserve"><value>License: Microsoft Software License Terms</value></data>
+
+  <data name="SettingsWindow.AboutAuthorFormat" xml:space="preserve"><value>制作者: {0}</value></data>
+  <data name="SettingsWindow.AboutVersionFormat" xml:space="preserve"><value>ビルドバージョン: {0}</value></data>
+  <data name="SettingsWindow.AboutBuildDateFormat" xml:space="preserve"><value>ビルド日時: {0}</value></data>
+  <data name="SettingsWindow.CaptureWaiting" xml:space="preserve"><value>入力待ち...</value></data>
+  <data name="SettingsWindow.CaptureButtonDefault" xml:space="preserve"><value>ショートカットを記録</value></data>
+  <data name="SettingsWindow.HotkeySaved" xml:space="preserve"><value>ショートカットを保存しました。</value></data>
+  <data name="SettingsWindow.HotkeyConflict" xml:space="preserve"><value>このショートカットは Windows または他のアプリですでに使用されています。</value></data>
+  <data name="SettingsWindow.HotkeyRegistrationFailedFormat" xml:space="preserve"><value>ショートカットを登録できませんでした。(err={0})</value></data>
+  <data name="SettingsWindow.HotkeyCapturePrompt" xml:space="preserve"><value>記録したいショートカットを押してください。Esc でキャンセルできます。</value></data>
+  <data name="SettingsWindow.HotkeyCaptureCanceled" xml:space="preserve"><value>ショートカットの記録をキャンセルしました。</value></data>
+  <data name="SettingsWindow.HotkeyCaptureNeedSecondKey" xml:space="preserve"><value>修飾キーの後に、別のキーを1つ押してください。</value></data>
+  <data name="SettingsWindow.PageTitleDefault" xml:space="preserve"><value>設定</value></data>
+  <data name="SettingsWindow.PageSubtitle.General" xml:space="preserve"><value>基本設定を変更します。</value></data>
+  <data name="SettingsWindow.PageSubtitle.Move" xml:space="preserve"><value>移動動作を設定します。</value></data>
+  <data name="SettingsWindow.PageSubtitle.AppList" xml:space="preserve"><value>一覧に表示するアプリを調整します。</value></data>
+  <data name="SettingsWindow.PageSubtitle.Log" xml:space="preserve"><value>ログと診断を設定します。</value></data>
+  <data name="SettingsWindow.PageSubtitle.Ext" xml:space="preserve"><value>将来の拡張機能向けの領域です。</value></data>
+  <data name="SettingsWindow.PageSubtitle.About" xml:space="preserve"><value>アプリ情報です。</value></data>
+  <data name="SettingsWindow.PageSubtitle.Licenses" xml:space="preserve"><value>第三者コンポーネントとライセンス情報です。</value></data>
+  <data name="SettingsWindow.StartupStatus.Enabled" xml:space="preserve"><value>有効です。</value></data>
+  <data name="SettingsWindow.StartupStatus.Disabled" xml:space="preserve"><value>無効です。</value></data>
+  <data name="SettingsWindow.StartupStatus.DisabledByUser" xml:space="preserve"><value>Windows 側で無効化されています。スタートアップ アプリから再度有効化してください。</value></data>
+  <data name="SettingsWindow.StartupStatus.DisabledByPolicy" xml:space="preserve"><value>組織のポリシーで無効化されています。</value></data>
+  <data name="SettingsWindow.StartupStatus.Unsupported" xml:space="preserve"><value>この配布形態では利用できないか、状態を確認できませんでした。</value></data>
+
+  <data name="SettingsWindowLogic.SelectKey" xml:space="preserve"><value>キーを選択してください。</value></data>
+  <data name="SettingsWindowLogic.ModifierOnly" xml:space="preserve"><value>Ctrl / Alt / Shift 単体はホットキーにできません。</value></data>
+  <data name="SettingsWindowLogic.RequireModifier" xml:space="preserve"><value>Ctrl / Alt / Shift のいずれかを含めてください。</value></data>
+  <data name="SettingsWindowLogic.WinSpaceReserved" xml:space="preserve"><value>Win + Space は Windows に予約されています。</value></data>
+
+  <data name="Tray.Menu.Show" xml:space="preserve"><value>表示</value></data>
+  <data name="Tray.Menu.Settings" xml:space="preserve"><value>設定...</value></data>
+  <data name="Tray.Menu.Exit" xml:space="preserve"><value>終了</value></data>
+</root>
