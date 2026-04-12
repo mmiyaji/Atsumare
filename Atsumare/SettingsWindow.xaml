@@ -198,9 +198,50 @@
                         </Border>
                     </StackPanel>
 
-                    <StackPanel x:Name="PanelMove" Spacing="12" Visibility="Collapsed"/>
+                    <StackPanel x:Name="PanelMove" Spacing="12" Visibility="Collapsed">
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="monitor default target display move">
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Name="TbMoveTargetMonitorTitle" Text="Default target monitor" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbMoveTargetMonitorDesc" Text="Choose which monitor Atsumare moves windows to by default." Style="{StaticResource CardDescStyle}"/>
+                                <ComboBox x:Name="CbDefaultTargetMonitor"
+                                          Width="280"
+                                          AutomationProperties.AutomationId="CbDefaultTargetMonitor"
+                                          SelectionChanged="DefaultTargetMonitor_Changed"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="maximize preserve move">
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Name="TbMovePreserveMaxTitle" Text="Keep maximized state" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbMovePreserveMaxDesc" Text="If the target window was maximized, restore that state after moving it." Style="{StaticResource CardDescStyle}"/>
+                                <ToggleSwitch x:Name="SwPreserveMaximized"
+                                              AutomationProperties.AutomationId="SwPreserveMaximized"
+                                              Toggled="AnySetting_Toggled"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="focus foreground move">
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Name="TbMoveFocusTitle" Text="Bring moved app to front" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbMoveFocusDesc" Text="After moving windows, activate the selected app if Windows allows it." Style="{StaticResource CardDescStyle}"/>
+                                <ToggleSwitch x:Name="SwFocusMovedApp"
+                                              AutomationProperties.AutomationId="SwFocusMovedApp"
+                                              Toggled="AnySetting_Toggled"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
 
                     <StackPanel x:Name="PanelAppList" Spacing="12" Visibility="Collapsed">
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="window count badge list">
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Name="TbShowWindowCountTitle" Text="Show window count in app list" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbShowWindowCountDesc" Text="Display how many windows will move for an app when it has more than one window." Style="{StaticResource CardDescStyle}"/>
+                                <ToggleSwitch x:Name="SwShowWindowCount"
+                                              AutomationProperties.AutomationId="SwShowWindowCount"
+                                              Toggled="AnySetting_Toggled"/>
+                            </StackPanel>
+                        </Border>
+
                         <Border Style="{StaticResource CardBorderStyle}" Tag="除外 プロセス app list filter exclude process">
                             <StackPanel Spacing="6">
                                 <TextBlock x:Name="TbExcludeProcessTitle" x:Uid="SettingsWindow.ExcludeProcessTitle" Text="Excluded process names" Style="{StaticResource CardTitleStyle}"/>
@@ -208,13 +249,37 @@
                                 <TextBox x:Name="TbExcludeCsv" AutomationProperties.AutomationId="TbExcludeCsv" TextChanged="AnySetting_TextChanged"/>
                                 <TextBlock x:Name="TbExcludeSuggestionTitle"
                                            Text="Add from currently open apps"
-                                           Style="{StaticResource CardDescStyle}"/>
-                                <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                                              VerticalScrollBarVisibility="Disabled">
-                                    <StackPanel x:Name="ExcludeSuggestionPanel"
-                                                Orientation="Horizontal"
-                                                Spacing="8"/>
-                                </ScrollViewer>
+                                           Style="{StaticResource CardDescStyle}"
+                                           Margin="0,8,0,0"/>
+                                <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="10"
+                                        Padding="10">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock x:Name="TbExcludeSuggestionHint"
+                                                   Text="Click an app name to add it to exclusions."
+                                                   Style="{StaticResource CardDescStyle}"/>
+                                        <ItemsControl x:Name="ExcludeSuggestionPanel">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapGrid Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Content="{Binding Name}"
+                                                            Tag="{Binding Name}"
+                                                            Padding="12,6,12,6"
+                                                            MinWidth="120"
+                                                            Margin="0,0,8,8"
+                                                            HorizontalAlignment="Left"
+                                                            Click="ExcludeSuggestionButton_Click"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -260,6 +325,46 @@
                             <StackPanel Spacing="6">
                                 <TextBlock x:Name="TbExtensionsTitle" x:Uid="SettingsWindow.ExtensionsTitle" Text="Extensions" Style="{StaticResource CardTitleStyle}"/>
                                 <TextBlock x:Name="TbExtensionsDesc" x:Uid="SettingsWindow.ExtensionsDesc" Text="Future capabilities such as move rules or app integrations can be added here." Style="{StaticResource CardDescStyle}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="pin favorite auto recent">
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Name="TbExtAutoPinTitle" Text="Auto-pin moved apps" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbExtAutoPinDesc" Text="When you move an app from the picker, add it to favorites automatically." Style="{StaticResource CardDescStyle}"/>
+                                <ToggleSwitch x:Name="SwAutoPinMovedApps"
+                                              AutomationProperties.AutomationId="SwAutoPinMovedApps"
+                                              Toggled="AnySetting_Toggled"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="recent order sort">
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Name="TbExtDisableRecentTitle" Text="Disable recent app ordering" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbExtDisableRecentDesc" Text="Keep the picker sorted without using your recent selections." Style="{StaticResource CardDescStyle}"/>
+                                <ToggleSwitch x:Name="SwDisableRecentSort"
+                                              AutomationProperties.AutomationId="SwDisableRecentSort"
+                                              Toggled="AnySetting_Toggled"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Tag="rules import export json">
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Name="TbExtRulesTitle" Text="Import or export rules" Style="{StaticResource CardTitleStyle}"/>
+                                <TextBlock x:Name="TbExtRulesDesc" Text="Save pinned apps, recent order, exclusions, and move preferences to a JSON file, or load them back later." Style="{StaticResource CardDescStyle}"/>
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <Button x:Name="BtnExportRules"
+                                            Content="Export rules"
+                                            AutomationProperties.AutomationId="BtnExportRules"
+                                            Click="BtnExportRules_Click"/>
+                                    <Button x:Name="BtnImportRules"
+                                            Content="Import rules"
+                                            AutomationProperties.AutomationId="BtnImportRules"
+                                            Click="BtnImportRules_Click"/>
+                                </StackPanel>
+                                <TextBlock x:Name="TbRulesStatus"
+                                           AutomationProperties.AutomationId="TbRulesStatus"
+                                           Style="{StaticResource CardDescStyle}"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

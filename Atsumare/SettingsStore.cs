@@ -14,6 +14,8 @@ public static class SettingsStore
 
     public static event EventHandler? SettingsChanged;
 
+    private const int CurrentSettingsMigrationVersion = 2;
+
     internal static string GetSettingsPath()
     {
         var overriddenPath = E2ETestMode.GetSettingsPathOverride();
@@ -72,6 +74,13 @@ public static class SettingsStore
                 SettingsJsonContext.Default.AtsumareSettings);
 
             Current = loaded ?? new AtsumareSettings();
+            if (ApplyMigrations(Current))
+            {
+                var migratedJson = JsonSerializer.Serialize(
+                    Current,
+                    SettingsJsonContext.Default.AtsumareSettings);
+                await File.WriteAllTextAsync(path, migratedJson);
+            }
             return Current;
         }
         catch (Exception ex)
@@ -109,5 +118,27 @@ public static class SettingsStore
         }
 
         SettingsChanged?.Invoke(null, EventArgs.Empty);
+    }
+
+    private static bool ApplyMigrations(AtsumareSettings settings)
+    {
+        var changed = false;
+
+        if (settings.SettingsMigrationVersion < 1)
+        {
+            settings.PreserveMaximizedOnMove = true;
+            settings.FocusMovedAppAfterMove = true;
+            settings.SettingsMigrationVersion = 1;
+            changed = true;
+        }
+
+        if (settings.SettingsMigrationVersion < 2)
+        {
+            settings.ShowWindowCountInList = true;
+            settings.SettingsMigrationVersion = CurrentSettingsMigrationVersion;
+            changed = true;
+        }
+
+        return changed;
     }
 }

@@ -28,8 +28,8 @@ public sealed class SettingsWindowTests
             EnableVerboseLog = false,
         });
 
-        session.Launch();
-        var mainWindow = session.WaitForWindow();
+        session.Launch("--show-picker");
+        var mainWindow = session.WaitForWindowContaining("FilterBox");
         var settingsButton = session.FindById(mainWindow, "SettingsButton");
         settingsButton.Patterns.Invoke.Pattern.Invoke();
 
@@ -56,7 +56,7 @@ public sealed class SettingsWindowTests
         });
 
         session.Launch("--settings");
-        var settingsWindow = session.WaitForWindowContaining("NavAppList");
+        var settingsWindow = session.WaitForWindowContaining("SwStartMinToTray");
         ActivateNavItem(session.FindById(settingsWindow, "NavAppList"));
 
         var excludeTextBox = session.FindById(settingsWindow, "TbExcludeCsv");
@@ -94,8 +94,16 @@ public sealed class SettingsWindowTests
         SetToggle(session.FindById(settingsWindow, "SwStartMinToTray"), true);
         SetToggle(session.FindById(settingsWindow, "SwCloseMinToTray"), true);
 
+        ActivateNavItem(session.FindById(settingsWindow, "NavMove"));
+        SetToggle(session.FindById(settingsWindow, "SwPreserveMaximized"), false);
+        SetToggle(session.FindById(settingsWindow, "SwFocusMovedApp"), true);
+
         ActivateNavItem(session.FindById(settingsWindow, "NavLog"));
         SetToggle(session.FindById(settingsWindow, "SwVerboseLog"), true);
+
+        ActivateNavItem(session.FindById(settingsWindow, "NavExt"));
+        SetToggle(session.FindById(settingsWindow, "SwAutoPinMovedApps"), true);
+        SetToggle(session.FindById(settingsWindow, "SwDisableRecentSort"), true);
 
         session.WaitForSettingsValue(json =>
         {
@@ -103,6 +111,10 @@ public sealed class SettingsWindowTests
             var root = doc.RootElement;
             return root.GetProperty("StartMinimizedToTray").GetBoolean()
                 && root.GetProperty("CloseButtonMinimizesToTray").GetBoolean()
+                && !root.GetProperty("PreserveMaximizedOnMove").GetBoolean()
+                && root.GetProperty("FocusMovedAppAfterMove").GetBoolean()
+                && root.GetProperty("AutoPinMovedApps").GetBoolean()
+                && root.GetProperty("DisableRecentSorting").GetBoolean()
                 && root.GetProperty("EnableVerboseLog").GetBoolean();
         });
     }

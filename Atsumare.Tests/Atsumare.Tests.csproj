@@ -19,6 +19,7 @@
   <ItemGroup>
     <Compile Include="..\\Atsumare\\AppLanguage.cs" Link="AppLanguage.cs" />
     <Compile Include="..\\Atsumare\\Settings.cs" Link="Settings.cs" />
+    <Compile Include="..\\Atsumare\\AtsumareRulesFile.cs" Link="AtsumareRulesFile.cs" />
     <Compile Include="..\\Atsumare\\SettingsWindowLogic.cs" Link="SettingsWindowLogic.cs" />
   </ItemGroup>
 </Project>

@@ -112,17 +112,40 @@
   <data name="MainWindow.EmptyStateTitle.Text" xml:space="preserve"><value>一致するアプリはありません</value></data>
   <data name="MainWindow.EmptyStateText.Text" xml:space="preserve"><value>別の検索語を試すか、設定の除外アプリを見直してください。</value></data>
   <data name="MainWindow.OnboardingTitle.Text" xml:space="preserve"><value>Atsumare へようこそ</value></data>
-  <data name="MainWindow.OnboardingText.Text" xml:space="preserve"><value>アプリのタイルを選ぶと、そのアプリのウィンドウを現在のモニターへ移動します。Ctrl + Alt + Space でいつでもピッカーを開けます。</value></data>
+  <data name="MainWindow.OnboardingText.Text" xml:space="preserve"><value>アプリのタイルを選ぶと、そのアプリのウィンドウを現在のモニターへ移動します。Ctrl + Shift + F2 でいつでもピッカーを開けます。</value></data>
   <data name="MainWindow.OnboardingOpenSettings.Content" xml:space="preserve"><value>設定を開く</value></data>
   <data name="MainWindow.OnboardingDismiss.Content" xml:space="preserve"><value>閉じる</value></data>
   <data name="MainWindow.MoveFailedPermissionFormat" xml:space="preserve"><value>{0} を移動できませんでした。より高い権限で動作している可能性があります。</value></data>
   <data name="MainWindow.MoveFailedGenericFormat" xml:space="preserve"><value>{0} を移動できませんでした。ウィンドウの状態を確認して再試行してください。</value></data>
   <data name="MainWindow.MovePartialPermissionFormat" xml:space="preserve"><value>{0} の一部ウィンドウは権限のため移動できませんでした。</value></data>
   <data name="SettingsWindow.ExcludeSuggestionTitle.Text" xml:space="preserve"><value>現在開いているアプリから追加</value></data>
+  <data name="SettingsWindow.ExcludeSuggestionHint.Text" xml:space="preserve"><value>アプリ名をクリックすると除外対象に追加されます。</value></data>
   <data name="SettingsWindow.DiagnosticsTitle.Text" xml:space="preserve"><value>診断情報</value></data>
   <data name="SettingsWindow.DiagnosticsDesc.Text" xml:space="preserve"><value>短い診断サマリーをコピーするか、ログと設定を zip で書き出します。</value></data>
   <data name="SettingsWindow.CopyDiagnosticsButton.Content" xml:space="preserve"><value>診断情報をコピー</value></data>
   <data name="SettingsWindow.ExportDiagnosticsButton.Content" xml:space="preserve"><value>診断 zip を出力</value></data>
   <data name="SettingsWindow.DiagnosticsCopied" xml:space="preserve"><value>診断サマリーをクリップボードにコピーしました。</value></data>
   <data name="SettingsWindow.DiagnosticsExportedFormat" xml:space="preserve"><value>診断情報を書き出しました: {0}</value></data>
+  <data name="SettingsWindow.MoveTargetMonitorTitle.Text" xml:space="preserve"><value>既定の移動先モニター</value></data>
+  <data name="SettingsWindow.MoveTargetMonitorDesc.Text" xml:space="preserve"><value>Atsumare が既定でウィンドウを移動するモニターを選びます。</value></data>
+  <data name="SettingsWindow.MoveTargetMonitor.Current" xml:space="preserve"><value>現在のモニター</value></data>
+  <data name="SettingsWindow.MoveTargetMonitor.Primary" xml:space="preserve"><value>プライマリ モニター</value></data>
+  <data name="SettingsWindow.MovePreserveMaxTitle.Text" xml:space="preserve"><value>最大化状態を維持</value></data>
+  <data name="SettingsWindow.MovePreserveMaxDesc.Text" xml:space="preserve"><value>移動前に最大化されていたウィンドウは、移動後も最大化状態へ戻します。</value></data>
+  <data name="SettingsWindow.MoveFocusTitle.Text" xml:space="preserve"><value>移動後にアプリを前面化</value></data>
+  <data name="SettingsWindow.MoveFocusDesc.Text" xml:space="preserve"><value>Windows が許可する場合、移動後に選択したアプリをアクティブにします。</value></data>
+  <data name="SettingsWindow.ExtAutoPinTitle.Text" xml:space="preserve"><value>移動したアプリを自動でピン留め</value></data>
+  <data name="SettingsWindow.ExtAutoPinDesc.Text" xml:space="preserve"><value>ピッカーから移動したアプリを自動でお気に入りへ追加します。</value></data>
+  <data name="SettingsWindow.ExtDisableRecentTitle.Text" xml:space="preserve"><value>最近使った順を無効化</value></data>
+  <data name="SettingsWindow.ExtDisableRecentDesc.Text" xml:space="preserve"><value>最近選んだアプリ順を使わず、固定的な並びで表示します。</value></data>
+  <data name="SettingsWindow.ExtRulesTitle.Text" xml:space="preserve"><value>ルールのインポート / エクスポート</value></data>
+  <data name="SettingsWindow.ExtRulesDesc.Text" xml:space="preserve"><value>ピン留め、最近使った順、除外設定、移動設定を JSON ファイルへ保存したり、あとから読み戻したりできます。</value></data>
+  <data name="SettingsWindow.ExportRulesButton.Content" xml:space="preserve"><value>ルールを書き出す</value></data>
+  <data name="SettingsWindow.ImportRulesButton.Content" xml:space="preserve"><value>ルールを読み込む</value></data>
+  <data name="SettingsWindow.RulesExportedFormat" xml:space="preserve"><value>ルールを書き出しました: {0}</value></data>
+  <data name="SettingsWindow.RulesImportedFormat" xml:space="preserve"><value>ルールを読み込みました: {0}</value></data>
+  <data name="SettingsWindow.RulesImportFailed" xml:space="preserve"><value>選択したルール ファイルを読み込めませんでした。</value></data>
+  <data name="SettingsWindow.ShowWindowCountTitle.Text" xml:space="preserve"><value>アプリ一覧にウィンドウ数を表示</value></data>
+  <data name="SettingsWindow.ShowWindowCountDesc.Text" xml:space="preserve"><value>複数ウィンドウを持つアプリで、移動対象になるウィンドウ数を表示します。</value></data>
+  <data name="MainWindow.WindowCountFormat" xml:space="preserve"><value>{0} 個のウィンドウ</value></data>
 </root>

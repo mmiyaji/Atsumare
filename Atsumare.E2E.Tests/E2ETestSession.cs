@@ -193,7 +193,22 @@ internal sealed class E2ETestSession : IDisposable
     public void WaitForSettingsValue(Func<string, bool> predicate)
     {
         var result = Retry.WhileFalse(
-            () => File.Exists(_settingsPath) && predicate(File.ReadAllText(_settingsPath)),
+            () =>
+            {
+                if (!File.Exists(_settingsPath))
+                    return false;
+
+                try
+                {
+                    using var stream = new FileStream(_settingsPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    using var reader = new StreamReader(stream);
+                    return predicate(reader.ReadToEnd());
+                }
+                catch (IOException)
+                {
+                    return false;
+                }
+            },
             timeout: TimeSpan.FromSeconds(10),
             interval: TimeSpan.FromMilliseconds(100));
 

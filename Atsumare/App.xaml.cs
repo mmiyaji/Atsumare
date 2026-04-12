@@ -212,15 +212,15 @@ namespace Atsumare
             var vk = s.HotkeyVirtualKey;
 
             // フォールバック
-            if (mods == 0) mods = 0x0002 | 0x0001; // Ctrl+Alt
-            if (vk <= 0) vk = 0x20;               // Space
+            if (mods == 0) mods = SettingsWindowLogic.DefaultHotkeyModifiers;
+            if (vk <= 0) vk = SettingsWindowLogic.DefaultHotkeyVirtualKey;
 
             // ★ Win + Space は OS 予約のことが多いので弾く（まず最低限）
             if ((mods & 0x0008) != 0 && vk == 0x20)
             {
-                LogLine("[HOTKEY] Win+Space is reserved. Fallback to Ctrl+Alt+Space.");
-                mods = 0x0002 | 0x0001; // Ctrl+Alt
-                vk = 0x20;              // Space
+                LogLine("[HOTKEY] Win+Space is reserved. Fallback to Ctrl+Shift+F2.");
+                mods = SettingsWindowLogic.DefaultHotkeyModifiers;
+                vk = SettingsWindowLogic.DefaultHotkeyVirtualKey;
             }
 
             if (_lastAppliedHotkeyModifiers == mods && _lastAppliedHotkeyVirtualKey == vk)

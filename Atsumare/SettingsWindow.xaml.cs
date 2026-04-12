@@ -6,6 +6,8 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using System;
+using System.Collections.Generic;
+using System.Text.Json;
 using System.IO;
 using System.IO.Compression;
 using System.Threading.Tasks;
@@ -14,6 +16,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Collections.ObjectModel;
 using Windows.Storage;
+using Windows.Storage.Pickers;
 using Windows.System;
 using Windows.ApplicationModel.DataTransfer;
 namespace Atsumare;
@@ -35,12 +38,26 @@ public sealed partial class SettingsWindow : Window
 
     private AppWindow? _cachedAppWindow;
     private readonly ObservableCollection<HotkeyKeyItem> _hotkeyKeys = new();
+    private readonly ObservableCollection<MonitorOptionItem> _monitorOptions = new();
+    private readonly ObservableCollection<ExcludeSuggestionItem> _excludeSuggestions = new();
 
     private sealed class HotkeyKeyItem
     {
         public string Label { get; set; } = "";
         public int Vk { get; set; }
         public override string ToString() => Label;
+    }
+
+    private sealed class MonitorOptionItem
+    {
+        public string Key { get; set; } = "current";
+        public string Label { get; set; } = "";
+        public override string ToString() => Label;
+    }
+
+    private sealed class ExcludeSuggestionItem
+    {
+        public string Name { get; set; } = "";
     }
 
     public SettingsWindow()
@@ -63,6 +80,8 @@ public sealed partial class SettingsWindow : Window
 
         InitHotkeyKeyCandidates();
         CbHotkeyKey.ItemsSource = _hotkeyKeys;
+        CbDefaultTargetMonitor.ItemsSource = _monitorOptions;
+        ExcludeSuggestionPanel.ItemsSource = _excludeSuggestions;
         Nav.OpenPaneLength = _paneWidth;
         WindowIconHelper.Apply(this);
 
@@ -114,18 +133,35 @@ public sealed partial class SettingsWindow : Window
         BtnResetHotkey.Content = AppStrings.Get("SettingsWindow.BtnResetHotkey.Content");
         TbExcludeProcessTitle.Text = AppStrings.Get("SettingsWindow.ExcludeProcessTitle.Text");
         TbExcludeProcessDesc.Text = AppStrings.Get("SettingsWindow.ExcludeProcessDesc.Text");
+        TbShowWindowCountTitle.Text = AppStrings.Get("SettingsWindow.ShowWindowCountTitle.Text");
+        TbShowWindowCountDesc.Text = AppStrings.Get("SettingsWindow.ShowWindowCountDesc.Text");
         TbVerboseLogTitle.Text = AppStrings.Get("SettingsWindow.VerboseLogTitle.Text");
         TbVerboseLogDesc.Text = AppStrings.Get("SettingsWindow.VerboseLogDesc.Text");
         TbLogFolderTitle.Text = AppStrings.Get("SettingsWindow.LogFolderTitle.Text");
         TbLogFolderDesc.Text = AppStrings.Get("SettingsWindow.LogFolderDesc.Text");
         BtnOpenLogFolder.Content = AppStrings.Get("SettingsWindow.OpenLogFolderButton.Content");
         TbExcludeSuggestionTitle.Text = AppStrings.Get("SettingsWindow.ExcludeSuggestionTitle.Text");
+        TbExcludeSuggestionHint.Text = AppStrings.Get("SettingsWindow.ExcludeSuggestionHint.Text");
         TbDiagnosticsTitle.Text = AppStrings.Get("SettingsWindow.DiagnosticsTitle.Text");
         TbDiagnosticsDesc.Text = AppStrings.Get("SettingsWindow.DiagnosticsDesc.Text");
         BtnCopyDiagnostics.Content = AppStrings.Get("SettingsWindow.CopyDiagnosticsButton.Content");
         BtnExportDiagnostics.Content = AppStrings.Get("SettingsWindow.ExportDiagnosticsButton.Content");
+        TbMoveTargetMonitorTitle.Text = AppStrings.Get("SettingsWindow.MoveTargetMonitorTitle.Text");
+        TbMoveTargetMonitorDesc.Text = AppStrings.Get("SettingsWindow.MoveTargetMonitorDesc.Text");
+        TbMovePreserveMaxTitle.Text = AppStrings.Get("SettingsWindow.MovePreserveMaxTitle.Text");
+        TbMovePreserveMaxDesc.Text = AppStrings.Get("SettingsWindow.MovePreserveMaxDesc.Text");
+        TbMoveFocusTitle.Text = AppStrings.Get("SettingsWindow.MoveFocusTitle.Text");
+        TbMoveFocusDesc.Text = AppStrings.Get("SettingsWindow.MoveFocusDesc.Text");
         TbExtensionsTitle.Text = AppStrings.Get("SettingsWindow.ExtensionsTitle.Text");
         TbExtensionsDesc.Text = AppStrings.Get("SettingsWindow.ExtensionsDesc.Text");
+        TbExtAutoPinTitle.Text = AppStrings.Get("SettingsWindow.ExtAutoPinTitle.Text");
+        TbExtAutoPinDesc.Text = AppStrings.Get("SettingsWindow.ExtAutoPinDesc.Text");
+        TbExtDisableRecentTitle.Text = AppStrings.Get("SettingsWindow.ExtDisableRecentTitle.Text");
+        TbExtDisableRecentDesc.Text = AppStrings.Get("SettingsWindow.ExtDisableRecentDesc.Text");
+        TbExtRulesTitle.Text = AppStrings.Get("SettingsWindow.ExtRulesTitle.Text");
+        TbExtRulesDesc.Text = AppStrings.Get("SettingsWindow.ExtRulesDesc.Text");
+        BtnExportRules.Content = AppStrings.Get("SettingsWindow.ExportRulesButton.Content");
+        BtnImportRules.Content = AppStrings.Get("SettingsWindow.ImportRulesButton.Content");
         TbAboutAppDesc.Text = AppStrings.Get("SettingsWindow.AboutAppDesc.Text");
         TbAboutWorkflowDesc.Text = AppStrings.Get("SettingsWindow.AboutWorkflowDesc.Text");
         TbAboutPrivacyDesc.Text = AppStrings.Get("SettingsWindow.AboutPrivacyDesc.Text");
@@ -376,12 +412,19 @@ public sealed partial class SettingsWindow : Window
             }
 
             var startupStatus = startupTask.Result;
+            RefreshMonitorOptions();
 
             SwStartMinToTray.IsOn = s.StartMinimizedToTray;
             SelectUiLanguage(s.UiLanguage);
             UpdateStartupToggle(startupStatus);
             SwCloseMinToTray.IsOn = s.CloseButtonMinimizesToTray;
+            SelectDefaultTargetMonitor(s.DefaultTargetMonitorKey);
+            SwPreserveMaximized.IsOn = s.PreserveMaximizedOnMove;
+            SwFocusMovedApp.IsOn = s.FocusMovedAppAfterMove;
             TbExcludeCsv.Text = s.ExcludeProcessNamesCsv ?? "";
+            SwShowWindowCount.IsOn = s.ShowWindowCountInList;
+            SwAutoPinMovedApps.IsOn = s.AutoPinMovedApps;
+            SwDisableRecentSort.IsOn = s.DisableRecentSorting;
             SwVerboseLog.IsOn = s.EnableVerboseLog;
             s.LaunchAtStartup = SwLaunchAtStartup.IsOn;
             ApplyHotkeyToUI(s);
@@ -429,7 +472,7 @@ public sealed partial class SettingsWindow : Window
         if (item != null)
             CbHotkeyKey.SelectedItem = item;
         else
-            CbHotkeyKey.SelectedItem = _hotkeyKeys.FirstOrDefault(x => x.Vk == 0x20);
+            CbHotkeyKey.SelectedItem = _hotkeyKeys.FirstOrDefault(x => x.Vk == SettingsWindowLogic.DefaultHotkeyVirtualKey);
     }
 
     private void UpdateHotkeyPreview()
@@ -499,7 +542,7 @@ public sealed partial class SettingsWindow : Window
     private async Task ResetHotkeyToDefaultAsync()
     {
         const int defaultModifiers = SettingsWindowLogic.DefaultHotkeyModifiers;
-        const int defaultVirtualKey = 0x20;
+        const int defaultVirtualKey = SettingsWindowLogic.DefaultHotkeyVirtualKey;
 
         _isCapturingHotkey = false;
         UpdateCaptureButtonState();
@@ -568,7 +611,7 @@ public sealed partial class SettingsWindow : Window
             if (CbModCtrl.IsChecked == true) mods |= 0x0002;
             if (CbModShift.IsChecked == true) mods |= 0x0004;
 
-            var vk = (CbHotkeyKey.SelectedItem as HotkeyKeyItem)?.Vk ?? 0x20;
+            var vk = (CbHotkeyKey.SelectedItem as HotkeyKeyItem)?.Vk ?? SettingsWindowLogic.DefaultHotkeyVirtualKey;
 
             await TryApplyHotkeySelectionAsync(mods, vk, normalizeEmptyModifiers: true);
         }
@@ -598,6 +641,11 @@ public sealed partial class SettingsWindow : Window
                 s.LaunchAtStartup = SwLaunchAtStartup.IsOn;
             }
             s.CloseButtonMinimizesToTray = SwCloseMinToTray.IsOn;
+            s.PreserveMaximizedOnMove = SwPreserveMaximized.IsOn;
+            s.FocusMovedAppAfterMove = SwFocusMovedApp.IsOn;
+            s.ShowWindowCountInList = SwShowWindowCount.IsOn;
+            s.AutoPinMovedApps = SwAutoPinMovedApps.IsOn;
+            s.DisableRecentSorting = SwDisableRecentSort.IsOn;
             s.EnableVerboseLog = SwVerboseLog.IsOn;
 
             await SettingsStore.SaveAsync();
@@ -669,6 +717,23 @@ public sealed partial class SettingsWindow : Window
         {
             if (!_isClosing)
                 _isLoading = false;
+        }
+    }
+
+    private async void DefaultTargetMonitor_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isLoading || _isClosing)
+            return;
+
+        try
+        {
+            SettingsStore.Current.DefaultTargetMonitorKey =
+                SettingsWindowLogic.NormalizeMonitorSelection((CbDefaultTargetMonitor.SelectedItem as MonitorOptionItem)?.Key);
+            await SettingsStore.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            LogHandledException("DefaultTargetMonitor_Changed", ex);
         }
     }
 
@@ -933,10 +998,16 @@ public sealed partial class SettingsWindow : Window
 
     private void RefreshExcludeSuggestions()
     {
-        ExcludeSuggestionPanel.Children.Clear();
+        _excludeSuggestions.Clear();
 
         var existing = SettingsWindowLogic.ParseCsv(TbExcludeCsv.Text)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        static bool IsNoiseProcess(string processName)
+        {
+            return processName.Equals("ApplicationFrameHost", StringComparison.OrdinalIgnoreCase)
+                || processName.Equals("Application Frame Host", StringComparison.OrdinalIgnoreCase);
+        }
 
         var suggestions = Process.GetProcesses()
             .Where(p =>
@@ -953,6 +1024,7 @@ public sealed partial class SettingsWindow : Window
             .Select(p => p.ProcessName)
             .Where(name =>
                 !string.IsNullOrWhiteSpace(name) &&
+                !IsNoiseProcess(name) &&
                 !existing.Contains(name) &&
                 !string.Equals(name, Process.GetCurrentProcess().ProcessName, StringComparison.OrdinalIgnoreCase))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -962,15 +1034,40 @@ public sealed partial class SettingsWindow : Window
 
         foreach (var name in suggestions)
         {
-            var button = new Button
-            {
-                Content = name,
-                Tag = name,
-                Padding = new Thickness(10, 4, 10, 4)
-            };
-            button.Click += ExcludeSuggestionButton_Click;
-            ExcludeSuggestionPanel.Children.Add(button);
+            _excludeSuggestions.Add(new ExcludeSuggestionItem { Name = name });
         }
+    }
+
+    private void RefreshMonitorOptions()
+    {
+        _monitorOptions.Clear();
+        _monitorOptions.Add(new MonitorOptionItem
+        {
+            Key = "current",
+            Label = AppStrings.Get("SettingsWindow.MoveTargetMonitor.Current")
+        });
+        _monitorOptions.Add(new MonitorOptionItem
+        {
+            Key = "primary",
+            Label = AppStrings.Get("SettingsWindow.MoveTargetMonitor.Primary")
+        });
+
+        foreach (var option in MonitorSelectionHelper.GetPhysicalMonitorOptions())
+        {
+            _monitorOptions.Add(new MonitorOptionItem
+            {
+                Key = option.Key,
+                Label = option.Label
+            });
+        }
+    }
+
+    private void SelectDefaultTargetMonitor(string? key)
+    {
+        var normalized = SettingsWindowLogic.NormalizeMonitorSelection(key);
+        var item = _monitorOptions.FirstOrDefault(x => string.Equals(x.Key, normalized, StringComparison.OrdinalIgnoreCase))
+            ?? _monitorOptions.FirstOrDefault(x => x.Key == "current");
+        CbDefaultTargetMonitor.SelectedItem = item;
     }
 
     private async void ExcludeSuggestionButton_Click(object sender, RoutedEventArgs e)
@@ -1001,6 +1098,12 @@ public sealed partial class SettingsWindow : Window
             $"StartMinimizedToTray: {s.StartMinimizedToTray}",
             $"CloseButtonMinimizesToTray: {s.CloseButtonMinimizesToTray}",
             $"LaunchAtStartup: {s.LaunchAtStartup}",
+            $"DefaultTargetMonitorKey: {s.DefaultTargetMonitorKey}",
+            $"PreserveMaximizedOnMove: {s.PreserveMaximizedOnMove}",
+            $"FocusMovedAppAfterMove: {s.FocusMovedAppAfterMove}",
+            $"ShowWindowCountInList: {s.ShowWindowCountInList}",
+            $"AutoPinMovedApps: {s.AutoPinMovedApps}",
+            $"DisableRecentSorting: {s.DisableRecentSorting}",
             $"VerboseLog: {s.EnableVerboseLog}",
             $"PinnedAppKeys: {s.PinnedAppKeysCsv}",
             $"RecentAppKeys: {s.RecentAppKeysCsv}",
@@ -1064,6 +1167,73 @@ public sealed partial class SettingsWindow : Window
         {
             TbDiagnosticsStatus.Text = ex.Message;
             LogHandledException("BtnExportDiagnostics_Click", ex);
+        }
+    }
+
+    private async void BtnExportRules_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var picker = new FileSavePicker();
+            picker.FileTypeChoices.Add("JSON", new List<string> { ".json" });
+            picker.SuggestedFileName = "Atsumare-rules";
+            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+            var file = await picker.PickSaveFileAsync();
+            if (file == null)
+                return;
+
+            var rules = SettingsWindowLogic.CreateRulesFile(SettingsStore.Current);
+            var json = JsonSerializer.Serialize(rules, SettingsJsonContext.Default.AtsumareRulesFile);
+            await FileIO.WriteTextAsync(file, json);
+            TbRulesStatus.Text = AppStrings.Format("SettingsWindow.RulesExportedFormat", file.Path);
+        }
+        catch (Exception ex)
+        {
+            TbRulesStatus.Text = ex.Message;
+            LogHandledException("BtnExportRules_Click", ex);
+        }
+    }
+
+    private async void BtnImportRules_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var picker = new FileOpenPicker();
+            picker.FileTypeFilter.Add(".json");
+            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+            var file = await picker.PickSingleFileAsync();
+            if (file == null)
+                return;
+
+            var json = await FileIO.ReadTextAsync(file);
+            var rules = JsonSerializer.Deserialize(json, SettingsJsonContext.Default.AtsumareRulesFile);
+            if (rules == null)
+            {
+                TbRulesStatus.Text = AppStrings.Get("SettingsWindow.RulesImportFailed");
+                return;
+            }
+
+            SettingsWindowLogic.ApplyRulesFile(SettingsStore.Current, rules, Process.GetCurrentProcess().ProcessName);
+            await SettingsStore.SaveAsync();
+
+            _isLoading = true;
+            RefreshMonitorOptions();
+            SelectDefaultTargetMonitor(SettingsStore.Current.DefaultTargetMonitorKey);
+            SwPreserveMaximized.IsOn = SettingsStore.Current.PreserveMaximizedOnMove;
+            SwFocusMovedApp.IsOn = SettingsStore.Current.FocusMovedAppAfterMove;
+            TbExcludeCsv.Text = SettingsStore.Current.ExcludeProcessNamesCsv ?? "";
+            SwAutoPinMovedApps.IsOn = SettingsStore.Current.AutoPinMovedApps;
+            SwDisableRecentSort.IsOn = SettingsStore.Current.DisableRecentSorting;
+            _isLoading = false;
+
+            RefreshExcludeSuggestions();
+            TbRulesStatus.Text = AppStrings.Format("SettingsWindow.RulesImportedFormat", file.Path);
+        }
+        catch (Exception ex)
+        {
+            _isLoading = false;
+            TbRulesStatus.Text = ex.Message;
+            LogHandledException("BtnImportRules_Click", ex);
         }
     }
 

@@ -321,25 +321,28 @@
 
             <Grid x:Name="OnboardingOverlay"
                   Grid.RowSpan="4"
-                  Background="#C0141414"
+                  Background="#8C0F1115"
                   Visibility="Collapsed">
                 <Border HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        Padding="28,24"
-                        CornerRadius="18"
-                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        Padding="30,26"
+                        CornerRadius="20"
+                        Background="#F52A2D33"
+                        BorderBrush="#664E5A6A"
                         BorderThickness="1"
                         MaxWidth="460">
+                    <Border.Shadow>
+                        <ThemeShadow/>
+                    </Border.Shadow>
                     <StackPanel Spacing="12">
                         <TextBlock x:Name="OnboardingTitle"
                                    Text="Welcome to Atsumare"
                                    FontSize="24"
                                    FontWeight="SemiBold"/>
                         <TextBlock x:Name="OnboardingText"
-                                   Text="Choose an app tile to move that app's windows to the current monitor. Use Ctrl + Alt + Space to open the picker anytime."
+                                   Text="Choose an app tile to move that app's windows to the current monitor. Use Ctrl + Shift + F2 to open the picker anytime."
                                    TextWrapping="Wrap"
-                                   Opacity="0.86"/>
+                                   Opacity="0.94"/>
                         <StackPanel Orientation="Horizontal"
                                     HorizontalAlignment="Right"
                                     Spacing="8">

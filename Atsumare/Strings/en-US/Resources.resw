@@ -13,7 +13,8 @@
   <data name="MainWindow.EmptyStateTitle.Text" xml:space="preserve"><value>No apps matched</value></data>
   <data name="MainWindow.EmptyStateText.Text" xml:space="preserve"><value>Try a different search, or adjust excluded apps in Settings.</value></data>
   <data name="MainWindow.OnboardingTitle.Text" xml:space="preserve"><value>Welcome to Atsumare</value></data>
-  <data name="MainWindow.OnboardingText.Text" xml:space="preserve"><value>Choose an app tile to move that app's windows to the current monitor. Use Ctrl + Alt + Space to open the picker anytime.</value></data>
+  <data name="MainWindow.OnboardingText.Text" xml:space="preserve"><value>Choose an app tile to move that app's windows to the current monitor. Use Ctrl + Shift + F2 to open the picker anytime.</value></data>
+  <data name="MainWindow.WindowCountFormat" xml:space="preserve"><value>{0} windows</value></data>
   <data name="MainWindow.OnboardingOpenSettings.Content" xml:space="preserve"><value>Open Settings</value></data>
   <data name="MainWindow.OnboardingDismiss.Content" xml:space="preserve"><value>Got it</value></data>
   <data name="MainWindow.MoveFailedPermissionFormat" xml:space="preserve"><value>Could not move {0}. It may be running with higher permissions.</value></data>
@@ -44,6 +45,14 @@
   <data name="SettingsWindow.GeneralCloseMinDesc.Text" xml:space="preserve"><value>Treat the close button as minimize-to-tray instead of exit.</value></data>
   <data name="SettingsWindow.GeneralLaunchStartupTitle.Text" xml:space="preserve"><value>Launch at Windows sign-in</value></data>
   <data name="SettingsWindow.GeneralLaunchStartupDesc.Text" xml:space="preserve"><value>Automatically start Atsumare when the user signs in.</value></data>
+  <data name="SettingsWindow.MoveTargetMonitorTitle.Text" xml:space="preserve"><value>Default target monitor</value></data>
+  <data name="SettingsWindow.MoveTargetMonitorDesc.Text" xml:space="preserve"><value>Choose which monitor Atsumare moves windows to by default.</value></data>
+  <data name="SettingsWindow.MoveTargetMonitor.Current" xml:space="preserve"><value>Current monitor</value></data>
+  <data name="SettingsWindow.MoveTargetMonitor.Primary" xml:space="preserve"><value>Primary monitor</value></data>
+  <data name="SettingsWindow.MovePreserveMaxTitle.Text" xml:space="preserve"><value>Keep maximized state</value></data>
+  <data name="SettingsWindow.MovePreserveMaxDesc.Text" xml:space="preserve"><value>If the target window was maximized, restore that state after moving it.</value></data>
+  <data name="SettingsWindow.MoveFocusTitle.Text" xml:space="preserve"><value>Bring moved app to front</value></data>
+  <data name="SettingsWindow.MoveFocusDesc.Text" xml:space="preserve"><value>After moving windows, activate the selected app if Windows allows it.</value></data>
   <data name="SettingsWindow.HotkeyTitle.Text" xml:space="preserve"><value>Hotkey</value></data>
   <data name="SettingsWindow.HotkeyDesc.Text" xml:space="preserve"><value>Choose the shortcut that shows or hides the picker.</value></data>
   <data name="SettingsWindow.HotkeyKeyLabel.Text" xml:space="preserve"><value>Key</value></data>
@@ -53,7 +62,10 @@
 
   <data name="SettingsWindow.ExcludeProcessTitle.Text" xml:space="preserve"><value>Excluded process names</value></data>
   <data name="SettingsWindow.ExcludeProcessDesc.Text" xml:space="preserve"><value>Enter process names to hide from the list, separated by commas. Example: explorer, obs64</value></data>
+  <data name="SettingsWindow.ShowWindowCountTitle.Text" xml:space="preserve"><value>Show window count in app list</value></data>
+  <data name="SettingsWindow.ShowWindowCountDesc.Text" xml:space="preserve"><value>Display how many windows will move for an app when it has more than one window.</value></data>
   <data name="SettingsWindow.ExcludeSuggestionTitle.Text" xml:space="preserve"><value>Add from currently open apps</value></data>
+  <data name="SettingsWindow.ExcludeSuggestionHint.Text" xml:space="preserve"><value>Click an app name to add it to exclusions.</value></data>
 
   <data name="SettingsWindow.VerboseLogTitle.Text" xml:space="preserve"><value>Enable verbose logs</value></data>
   <data name="SettingsWindow.VerboseLogDesc.Text" xml:space="preserve"><value>Increase diagnostic logging. This is usually not needed in normal use.</value></data>
@@ -69,6 +81,17 @@
 
   <data name="SettingsWindow.ExtensionsTitle.Text" xml:space="preserve"><value>Extensions</value></data>
   <data name="SettingsWindow.ExtensionsDesc.Text" xml:space="preserve"><value>Future capabilities such as move rules or app integrations can be added here.</value></data>
+  <data name="SettingsWindow.ExtAutoPinTitle.Text" xml:space="preserve"><value>Auto-pin moved apps</value></data>
+  <data name="SettingsWindow.ExtAutoPinDesc.Text" xml:space="preserve"><value>When you move an app from the picker, add it to favorites automatically.</value></data>
+  <data name="SettingsWindow.ExtDisableRecentTitle.Text" xml:space="preserve"><value>Disable recent app ordering</value></data>
+  <data name="SettingsWindow.ExtDisableRecentDesc.Text" xml:space="preserve"><value>Keep the picker sorted without using your recent selections.</value></data>
+  <data name="SettingsWindow.ExtRulesTitle.Text" xml:space="preserve"><value>Import or export rules</value></data>
+  <data name="SettingsWindow.ExtRulesDesc.Text" xml:space="preserve"><value>Save pinned apps, recent order, exclusions, and move preferences to a JSON file, or load them back later.</value></data>
+  <data name="SettingsWindow.ExportRulesButton.Content" xml:space="preserve"><value>Export rules</value></data>
+  <data name="SettingsWindow.ImportRulesButton.Content" xml:space="preserve"><value>Import rules</value></data>
+  <data name="SettingsWindow.RulesExportedFormat" xml:space="preserve"><value>Rules exported: {0}</value></data>
+  <data name="SettingsWindow.RulesImportedFormat" xml:space="preserve"><value>Rules imported: {0}</value></data>
+  <data name="SettingsWindow.RulesImportFailed" xml:space="preserve"><value>Could not import the selected rules file.</value></data>
 
   <data name="SettingsWindow.AboutAppDesc.Text" xml:space="preserve"><value>Tool for moving windows between displays.</value></data>
   <data name="SettingsWindow.AboutWorkflowDesc.Text" xml:space="preserve"><value>Atsumare detects desktop apps that are already open, groups related windows into a single tile when possible, and lets you move that app's windows to the current monitor with one action.</value></data>

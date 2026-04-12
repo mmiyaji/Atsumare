@@ -75,4 +75,38 @@ public sealed class SettingsWindowLogicTests
         var actual = SettingsWindowLogic.TouchRecentKeyCsv("app:a, app:b, app:c", "app:b", maxItems: 5);
         Assert.Equal("app:b, app:a, app:c", actual);
     }
+
+    [Fact]
+    public void NormalizeMonitorSelection_FallsBackToCurrent()
+    {
+        Assert.Equal("current", SettingsWindowLogic.NormalizeMonitorSelection("weird"));
+    }
+
+    [Fact]
+    public void ApplyRulesFile_UpdatesRelevantSettings()
+    {
+        var settings = new AtsumareSettings();
+        var rules = new AtsumareRulesFile
+        {
+            DefaultTargetMonitorKey = "primary",
+            PreserveMaximizedOnMove = false,
+            FocusMovedAppAfterMove = true,
+            AutoPinMovedApps = true,
+            DisableRecentSorting = true,
+            ExcludeProcessNamesCsv = "explorer, slack",
+            PinnedAppKeysCsv = "app:a",
+            RecentAppKeysCsv = "app:b, app:c"
+        };
+
+        SettingsWindowLogic.ApplyRulesFile(settings, rules, "Atsumare");
+
+        Assert.Equal("primary", settings.DefaultTargetMonitorKey);
+        Assert.False(settings.PreserveMaximizedOnMove);
+        Assert.True(settings.FocusMovedAppAfterMove);
+        Assert.True(settings.AutoPinMovedApps);
+        Assert.True(settings.DisableRecentSorting);
+        Assert.Equal("explorer, slack, Atsumare", settings.ExcludeProcessNamesCsv);
+        Assert.Equal("app:a", settings.PinnedAppKeysCsv);
+        Assert.Equal("app:b, app:c", settings.RecentAppKeysCsv);
+    }
 }

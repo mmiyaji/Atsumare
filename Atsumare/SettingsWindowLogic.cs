@@ -6,7 +6,8 @@ namespace Atsumare;
 
 internal static class SettingsWindowLogic
 {
-    internal const int DefaultHotkeyModifiers = 0x0002 | 0x0001;
+    internal const int DefaultHotkeyModifiers = 0x0002 | 0x0004; // Ctrl + Shift
+    internal const int DefaultHotkeyVirtualKey = 0x71; // F2
 
     internal static string BuildHotkeyPreview(int modifiers, string? keyLabel)
     {
@@ -69,6 +70,46 @@ internal static class SettingsWindowLogic
             .ToList();
         parts.Insert(0, value);
         return string.Join(", ", parts.Take(maxItems));
+    }
+
+    internal static string NormalizeMonitorSelection(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return "current";
+
+        var normalized = key.Trim().ToLowerInvariant();
+        if (normalized == "current" || normalized == "primary")
+            return normalized;
+
+        if (normalized.StartsWith("display:", StringComparison.Ordinal))
+            return normalized;
+
+        return "current";
+    }
+
+    internal static AtsumareRulesFile CreateRulesFile(AtsumareSettings settings) => new()
+    {
+        ExportedAtUtc = DateTime.UtcNow.ToString("O"),
+        DefaultTargetMonitorKey = NormalizeMonitorSelection(settings.DefaultTargetMonitorKey),
+        PreserveMaximizedOnMove = settings.PreserveMaximizedOnMove,
+        FocusMovedAppAfterMove = settings.FocusMovedAppAfterMove,
+        AutoPinMovedApps = settings.AutoPinMovedApps,
+        DisableRecentSorting = settings.DisableRecentSorting,
+        ExcludeProcessNamesCsv = NormalizeExcludeCsv(settings.ExcludeProcessNamesCsv),
+        PinnedAppKeysCsv = NormalizeCsv(settings.PinnedAppKeysCsv),
+        RecentAppKeysCsv = NormalizeCsv(settings.RecentAppKeysCsv)
+    };
+
+    internal static void ApplyRulesFile(AtsumareSettings settings, AtsumareRulesFile rulesFile, string selfProcessName)
+    {
+        settings.DefaultTargetMonitorKey = NormalizeMonitorSelection(rulesFile.DefaultTargetMonitorKey);
+        settings.PreserveMaximizedOnMove = rulesFile.PreserveMaximizedOnMove;
+        settings.FocusMovedAppAfterMove = rulesFile.FocusMovedAppAfterMove;
+        settings.AutoPinMovedApps = rulesFile.AutoPinMovedApps;
+        settings.DisableRecentSorting = rulesFile.DisableRecentSorting;
+        settings.ExcludeProcessNamesCsv = EnsureSelfInExcludeCsv(rulesFile.ExcludeProcessNamesCsv, selfProcessName);
+        settings.PinnedAppKeysCsv = NormalizeCsv(rulesFile.PinnedAppKeysCsv);
+        settings.RecentAppKeysCsv = NormalizeCsv(rulesFile.RecentAppKeysCsv);
     }
 
     internal static int NormalizeHotkeyModifiers(int modifiers) =>

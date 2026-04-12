@@ -9,6 +9,7 @@ namespace Atsumare;
     AllowTrailingCommas = true
 )]
 [JsonSerializable(typeof(AtsumareSettings))]
+[JsonSerializable(typeof(AtsumareRulesFile))]
 internal partial class SettingsJsonContext : JsonSerializerContext
 {
 }

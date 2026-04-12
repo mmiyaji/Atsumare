@@ -421,6 +421,9 @@ public sealed partial class MainWindow : Window
         {
             if (args.WindowActivationState == WindowActivationState.Deactivated)
             {
+                if (E2ETestMode.IsEnabled)
+                    return;
+
                 if (App.IsAutoCloseSuppressed())
                     return;
 
@@ -456,14 +459,17 @@ public sealed partial class MainWindow : Window
         try
         {
             var myHwnd = WindowNative.GetWindowHandle(this);
-            var targetMon = _targetMonitorForThisWindow != IntPtr.Zero
+            var currentMon = _targetMonitorForThisWindow != IntPtr.Zero
                 ? _targetMonitorForThisWindow
                 : MonitorFromWindow(myHwnd, MONITOR_DEFAULTTONEAREST);
+            var targetMon = MonitorSelectionHelper.ResolveMonitorHandle(SettingsStore.Current.DefaultTargetMonitorKey, currentMon);
 
             var moveResult = new MoveOperationResult();
             foreach (var pid in item.Pids.Distinct())
                 MoveAllWindowsOfProcessToMonitor(pid, targetMon, moveResult);
 
+            if (SettingsStore.Current.AutoPinMovedApps)
+                await EnsurePinnedAsync(item.GroupKey);
             await RememberRecentGroupAsync(item.GroupKey);
 
             if (moveResult.MovedWindowCount == 0)
@@ -478,7 +484,12 @@ public sealed partial class MainWindow : Window
             if (moveResult.AccessDenied)
                 ShowStatusMessage(AppStrings.Format("MainWindow.MovePartialPermissionFormat", item.AppName), isError: false);
 
-            DispatcherQueue.TryEnqueue(CloseAllAtsumareWindows);
+            CloseAllAtsumareWindows();
+            if (SettingsStore.Current.FocusMovedAppAfterMove && moveResult.LastMovedWindow != IntPtr.Zero)
+            {
+                await Task.Delay(80);
+                TryBringExternalWindowToForeground(moveResult.LastMovedWindow);
+            }
         }
         catch (Exception ex)
         {
@@ -606,12 +617,13 @@ public sealed partial class MainWindow : Window
 
                 App.LogVerbose($"[Move] hwnd=0x{hWnd.ToInt64():X} -> ({mapped.Left},{mapped.Top}) wasMax={wasMax} wasMin={wasMin}");
                 moveResult.MovedWindowCount++;
+                moveResult.LastMovedWindow = hWnd;
 
                 if (hasWp)
                 {
                     wp.rcNormalPosition = mapped;
 
-                    if (wasMax)
+                    if (wasMax && SettingsStore.Current.PreserveMaximizedOnMove)
                     {
                         wp.showCmd = SW_SHOWMAXIMIZED;
                         SetWindowPlacement(hWnd, ref wp);
@@ -623,7 +635,7 @@ public sealed partial class MainWindow : Window
                         SetWindowPlacement(hWnd, ref wp);
                     }
                 }
-                else if (wasMax)
+                else if (wasMax && SettingsStore.Current.PreserveMaximizedOnMove)
                 {
                     ShowWindow(hWnd, SW_MAXIMIZE);
                 }
@@ -855,8 +867,9 @@ public sealed partial class MainWindow : Window
                 Icon = cachedIcon.Image,
                 Pid = w.pid,
                 Pids = group.Members.Select(x => x.pid).Distinct().ToArray(),
+                WindowCount = group.Members.Count,
                 Hwnd = w.hWnd,
-                Description = BuildItemDescription(w.pid, cachedIcon),
+                Description = BuildItemDescription(group.Members.Count, w.pid, cachedIcon),
                 SearchText = BuildSearchText(appName, cachedIcon, exePath, w.title)
             };
             if (cachedIcon.Image == null)
@@ -907,9 +920,26 @@ public sealed partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(groupKey))
             return;
 
+        if (SettingsStore.Current.DisableRecentSorting)
+            return;
+
         SettingsStore.Current.RecentAppKeysCsv = SettingsWindowLogic.TouchRecentKeyCsv(
             SettingsStore.Current.RecentAppKeysCsv,
             groupKey);
+        await SettingsStore.SaveAsync();
+    }
+
+    private async Task EnsurePinnedAsync(string groupKey)
+    {
+        if (string.IsNullOrWhiteSpace(groupKey))
+            return;
+
+        var current = SettingsStore.Current.PinnedAppKeysCsv;
+        var updated = SettingsWindowLogic.AddCsvValue(current, groupKey);
+        if (string.Equals(current, updated, StringComparison.Ordinal))
+            return;
+
+        SettingsStore.Current.PinnedAppKeysCsv = updated;
         await SettingsStore.SaveAsync();
     }
 
@@ -1045,8 +1075,11 @@ public sealed partial class MainWindow : Window
             : appName;
     }
 
-    private static string BuildItemDescription(uint pid, IconLoadResult iconResult)
+    private static string BuildItemDescription(int windowCount, uint pid, IconLoadResult iconResult)
     {
+        if (SettingsStore.Current.ShowWindowCountInList && windowCount > 1)
+            return AppStrings.Format("MainWindow.WindowCountFormat", windowCount);
+
         return ShowDeveloperDiagnostics
             ? $"PID:{pid}"
             : "";
@@ -1087,9 +1120,21 @@ public sealed partial class MainWindow : Window
 
     private static AppGroupItem[] SortItems(IEnumerable<AppGroupItem> items) =>
         items.OrderByDescending(x => x.IsPinned)
-            .ThenBy(x => x.RecentOrder)
+            .ThenBy(x => SettingsStore.Current.DisableRecentSorting ? 0 : x.RecentOrder)
             .ThenBy(x => x.AppName, StringComparer.CurrentCultureIgnoreCase)
             .ToArray();
+
+    private static void TryBringExternalWindowToForeground(IntPtr hWnd)
+    {
+        if (hWnd == IntPtr.Zero)
+            return;
+
+        ShowWindow(hWnd, SW_RESTORE);
+        BringWindowToTop(hWnd);
+        SetForegroundWindow(hWnd);
+        SetActiveWindow(hWnd);
+        SetFocus(hWnd);
+    }
 
     private static string BuildWindowGroupKey(
         (IntPtr hWnd, string title, uint pid) window,
@@ -1131,7 +1176,7 @@ public sealed partial class MainWindow : Window
                     {
                         entry.item.Icon = iconResult.Image;
                         entry.item.AppName = BuildItemDisplayName(entry.item.BaseAppName, entry.pid, iconResult);
-                        entry.item.Description = BuildItemDescription(entry.pid, iconResult);
+                        entry.item.Description = BuildItemDescription(entry.item.WindowCount, entry.pid, iconResult);
                         entry.item.SearchText = BuildSearchText(entry.item.BaseAppName, iconResult, entry.exePath, entry.item.WindowTitle);
                         tcs.TrySetResult(null);
                     }
@@ -2069,6 +2114,7 @@ public sealed class AppGroupItem : INotifyPropertyChanged
     private IntPtr _hWnd;
     private uint _pid;
     private IReadOnlyList<uint> _pids = Array.Empty<uint>();
+    private int _windowCount;
     private string _description = "";
     private string _groupKey = "";
     private string _searchText = "";
@@ -2115,6 +2161,12 @@ public sealed class AppGroupItem : INotifyPropertyChanged
     {
         get => _pids;
         set => SetProperty(ref _pids, value);
+    }
+
+    public int WindowCount
+    {
+        get => _windowCount;
+        set => SetProperty(ref _windowCount, value);
     }
 
     public string Description
@@ -2180,4 +2232,5 @@ internal sealed class MoveOperationResult
 {
     internal int MovedWindowCount { get; set; }
     internal bool AccessDenied { get; set; }
+    internal IntPtr LastMovedWindow { get; set; }
 }
