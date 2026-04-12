@@ -29,6 +29,18 @@
   </PropertyGroup>
   <ItemGroup>
     <None Remove="SettingsWindow.xaml" />
+    <Content Remove="Assets\icon.png" />
+    <Content Remove="Assets\icon2.png" />
+    <Content Remove="Assets\icon3.png" />
+    <Content Remove="Assets\icon.svg" />
+    <Content Remove="Assets\icon2.svg" />
+    <Content Remove="Assets\icon3.svg" />
+    <None Remove="Assets\icon.png" />
+    <None Remove="Assets\icon2.png" />
+    <None Remove="Assets\icon3.png" />
+    <None Remove="Assets\icon.svg" />
+    <None Remove="Assets\icon2.svg" />
+    <None Remove="Assets\icon3.svg" />
   </ItemGroup>
 
   <ItemGroup>
@@ -86,14 +98,14 @@
 
   <!-- Publish Properties -->
   <PropertyGroup>
-    <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
-    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
+    <PublishReadyToRun>false</PublishReadyToRun>
     <PublishTrimmed>false</PublishTrimmed>
     <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
     <AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
-    <GenerateTestArtifacts>True</GenerateTestArtifacts>
+    <GenerateTestArtifacts Condition="'$(Configuration)' == 'Debug'">True</GenerateTestArtifacts>
+    <GenerateTestArtifacts Condition="'$(Configuration)' != 'Debug'">False</GenerateTestArtifacts>
     <AppxBundle>Never</AppxBundle>
     <AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
     <AppInstallerUri>https://ruhenheim.org</AppInstallerUri>
